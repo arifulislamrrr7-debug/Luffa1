@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.luffa1"
+    namespace = "com.luffa"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.luffa1"
+        applicationId = "com.luffa"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
