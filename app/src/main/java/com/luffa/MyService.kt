@@ -1,8 +1,11 @@
+
 package com.luffa1
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.hardware.camera2.*
 import android.media.*
@@ -11,50 +14,24 @@ import android.provider.CallLog
 import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Telephony
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Surface
 import androidx.core.app.NotificationCompat
 import androidx.work.*
 import kotlinx.coroutines.*
+import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import android.content.Context
-import androidx.work.CoroutineWorker
-import androidx.work.WorkerParameters
-import androidx.work.ListenableWorker.Result
-
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
-import androidx.core.app.NotificationCompat
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-
-import android.telephony.TelephonyManager
-import android.telephony.PhoneStateListener
-import android.content.IntentFilter
-import android.content.Context
-import android.content.Intent
-import android.content.BroadcastReceiver
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
-import androidx.core.app.NotificationCompat
-
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.FormBody
-import okhttp3.MultipartBody
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
-
-
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-
 
 
 
