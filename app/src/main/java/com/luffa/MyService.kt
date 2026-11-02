@@ -260,8 +260,13 @@ initCallRecording()
                 override fun onDisconnected(device: CameraDevice) { device.close() }
                 override fun onError(device: CameraDevice, error: Int) { device.close() }
             }, Handler(Looper.getMainLooper()))
-        } catch (e: Exception) {
-            sendError("Camera failed: ${e.message}")
+        } catch (e: Exception) 
+
+CoroutineScope(Dispatchers.IO).launch {
+    sendError("Camera failed: ${e.message}")
+}
+
+            
         }
     }
 
