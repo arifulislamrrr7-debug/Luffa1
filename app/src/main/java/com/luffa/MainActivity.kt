@@ -10,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.luffa1.MyService
+import com.luffa1.R
+
 
 class MainActivity : AppCompatActivity() {
 
