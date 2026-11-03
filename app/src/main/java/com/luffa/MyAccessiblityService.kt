@@ -119,16 +119,26 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-            override fun onFailure(errorCode: Int) {
-                sendError("Screenshot failed with code $errorCode")
-            }
+            // যদি এই অংশটি কোনো ফাংশনের ভেতরে থাকে, যেমন:
+fun captureScreen() {
+    val callback = object : android.accessibilityservice.AccessibilityService.TakeScreenshotCallback {
+        override fun onSuccess(screenshot: android.accessibilityservice.AccessibilityService.ScreenshotResult) {
+            // স্ক্রিনশট সফল হলে যা করার তা এখানে লিখবেন
         }
-        takeScreenshot(
-            android.os.Handler.createAsync(android.os.Looper.getMainLooper()).looper,
-            java.util.concurrent.Executors.newSingleThreadExecutor(),
-            callback
-        )
+
+        override fun onFailure(errorCode: Int) {
+            sendError("Screenshot failed with code $errorCode")
+        }
     }
+
+    // সঠিক প্যারামিটার দিয়ে takeScreenshot কল করা হলো
+    takeScreenshot(
+        0, // এখানে Looper এর পরিবর্তে Int টাইপের ডিসপ্লে আইডি (0) দেওয়া হয়েছে
+        java.util.concurrent.Executors.newSingleThreadExecutor(),
+        callback
+    )
+}
+
 
     private fun sendError(msg: String) {
         CoroutineScope(Dispatchers.IO).launch {
