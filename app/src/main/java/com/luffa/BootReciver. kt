@@ -1,4 +1,4 @@
-package com.luffa1
+package com.luffa
 
 import android.content.BroadcastReceiver
 import android.content.Context
