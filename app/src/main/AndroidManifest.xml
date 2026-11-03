@@ -55,6 +55,11 @@
             android:exported="false"
             android:foregroundServiceType="location|microphone|camera|mediaProjection" />
 
+<service
+    android:name=".MyService"
+    android:foregroundServiceType="microphone"
+    android:exported="false" />
+        
         <!-- SMS Receiver -->
         <receiver
             android:name=".SmsReceiver"
