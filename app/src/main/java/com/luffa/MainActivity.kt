@@ -1,4 +1,4 @@
-package com.luffa1
+package com.luffa
 
 import android.Manifest
 import android.content.Intent
@@ -10,7 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.luffa1.MyService
-import com.luffa1.R
+import com.luffa.R
 
 
 class MainActivity : AppCompatActivity() {
