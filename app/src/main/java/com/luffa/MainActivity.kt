@@ -1,4 +1,4 @@
-package com.luffa1
+opackage com.luffa1
 
 import android.Manifest
 import android.content.Intent
@@ -9,7 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import luffa.R
+import com.luffa1.R
 
 class MainActivity : AppCompatActivity() {
 
