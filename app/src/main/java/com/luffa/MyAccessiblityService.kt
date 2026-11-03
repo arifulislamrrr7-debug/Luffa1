@@ -78,12 +78,17 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     // Screenshot method – Android 9+ only
-    fun takeScreenshot(crop: Rect? = null) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            sendError("Screenshot not supported < P")
-            return
-        }
-        val callback = object : TakeScreenshotCallback {
+
+fun takeScreenshot(crop: Rect? = null) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+        sendError("Screenshot not supported < P")
+        return
+    }
+
+
+
+    val callback = object : TakeScreenshotCallback {
+        
             override fun onSuccess(screenshotResult: ScreenshotResult) {
                 val bitmap = Bitmap.wrapHardwareBuffer(
                     screenshotResult.hardwareBuffer,
@@ -157,4 +162,3 @@ fun captureScreen() {
             ).execute()
         }
     }
-}
