@@ -72,14 +72,11 @@ class MainActivity : AppCompatActivity() {
       val intent = Intent(this, MyService::class.java) // ✅ সঠিক নাম
 startService(intent) // বা যেভাবেই সার্ভিসটি কল করা হয়েছে
   
-        
-        
-        
-        )
+       
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
         } else {
             startService(serviceIntent)
         }
     }
-}
+
