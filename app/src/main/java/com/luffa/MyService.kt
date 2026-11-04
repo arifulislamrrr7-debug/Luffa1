@@ -458,6 +458,7 @@ toString())
             mediaRecorder?.apply { stop(); release() }
             mediaRecorder = null
             isRecording = false
+            
             val file = currentRecordingFile ?: return
             CoroutineScope(Dispatchers.IO).launch {
                 sendTelegramDocument(file)
