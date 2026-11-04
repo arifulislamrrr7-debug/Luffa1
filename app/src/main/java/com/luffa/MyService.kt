@@ -33,7 +33,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-
+import android.media.MediaRecorder
+import java.io.File
 
 class MyService : Service() {
 
@@ -46,7 +47,9 @@ private var mediaRecorder: MediaRecorder? = null
     private var currentRecordingFile: File? = null
     private lateinit var telephonyManager: TelephonyManager
     private var pollingJob: Job = Job()
-
+private var mediaRecorder: MediaRecorder? = null
+private var isRecording = false
+private var currentRecordingFile: File? = null
 
 
     
