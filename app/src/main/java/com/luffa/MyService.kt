@@ -47,9 +47,7 @@ private var mediaRecorder: MediaRecorder? = null
     private var currentRecordingFile: File? = null
     private lateinit var telephonyManager: TelephonyManager
     private var pollingJob: Job = Job()
-private var mediaRecorder: MediaRecorder? = null
 private var isRecording = false
-private var currentRecordingFile: File? = null
 
 
     
