@@ -14,6 +14,10 @@ import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
 import com.luffa.MyService
 
+import androidx.preference.PreferenceManager  // ✅ সঠিক
+
+
+
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERM_CODE = 1001
