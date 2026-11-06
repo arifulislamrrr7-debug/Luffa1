@@ -46,8 +46,7 @@ class MyService : Service() {
 private var mediaRecorder: MediaRecorder? = null
     private var currentRecordingFile: File? = null
     private lateinit var telephonyManager: TelephonyManager
-    private var pollingJob: Job = Job()
-private var isRecording = false
+    private var isRecording = false
 
 
     
@@ -57,10 +56,6 @@ private var isRecording = false
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
-
-toString())
-        }
-    }
 
 
     override fun onCreate() {
