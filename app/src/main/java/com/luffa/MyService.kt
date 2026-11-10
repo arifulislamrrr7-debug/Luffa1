@@ -52,7 +52,7 @@ class LuffaService : Service() {
         .build()
 
     private val job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private val scope = CoroutineScope(Dispatchers.IO + job) }
 
     override fun onCreate() {
         super.onCreate()
