@@ -1,4 +1,4 @@
-package com.luffa
+opackage com.luffa
 
 import android.Manifest
 import android.content.Intent
@@ -11,7 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.luffa.onnofolder.MyService
+import com.luffa.MyService
 
 import androidx.preference.PreferenceManager  // ✅ সঠিক
 
