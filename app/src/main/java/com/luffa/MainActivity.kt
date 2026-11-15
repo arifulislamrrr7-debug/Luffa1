@@ -1,4 +1,4 @@
-opackage com.luffa
+package com.luffa
 
 import android.Manifest
 import android.content.Intent
