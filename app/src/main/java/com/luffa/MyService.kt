@@ -220,11 +220,12 @@ fun getExternalIP(): String {
                         }
                     }
 
+
 override fun onFailure(errorCode: Int) {
                         val errMsg = when (errorCode) {
-                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
+                            AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
                                 "Screenshot failed (overlay/locked)"
-                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
+                            AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
                                 "Too many attempts"
                             else -> "Unknown error code $errorCode"
                         }
@@ -233,10 +234,6 @@ override fun onFailure(errorCode: Int) {
                     }
                 }
             )
-        }
-
-
-
 
                     
         if (bitmap == null) {
