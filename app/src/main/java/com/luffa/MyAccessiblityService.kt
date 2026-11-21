@@ -62,7 +62,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
         try {
             val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
-            val display = displayManager.getDisplay(DisplayManager.DISPLAY_DEFAULT)
+            val display = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
             val metrics = DisplayMetrics()
             display.getMetrics(metrics)
 
