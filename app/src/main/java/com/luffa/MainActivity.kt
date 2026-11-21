@@ -12,6 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.luffa.MyService
+import android.content.ComponentName
+
+
+
 
 import androidx.preference.PreferenceManager  // ✅ সঠিক
 
