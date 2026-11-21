@@ -65,7 +65,6 @@ class MyAccessibilityService : AccessibilityService() {
             val display = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
             val metrics = DisplayMetrics()
             display.getMetrics(metrics)
-        }
 
             imageReader = ImageReader.newInstance(metrics.widthPixels, metrics.heightPixels, PixelFormat.RGBA_8888, 2)
             val displayCapture = DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY or
