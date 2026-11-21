@@ -76,6 +76,7 @@ class MyAccessibilityService : AccessibilityService() {
                 metrics.widthPixels, metrics.heightPixels, metrics.densityDpi,
                 imageReader!!.surface, displayCapture
             )
+        }
 
             imageReader!!.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireLatestImage()
