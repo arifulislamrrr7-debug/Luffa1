@@ -27,6 +27,7 @@ import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 class MyService : Service() {
 
@@ -92,7 +93,7 @@ override fun onCreate() {
 
     // ================== NOTIFICATIONS ==================
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODESTimeUnit
             val channel = NotificationChannel(
                 "spy_channel",
                 "System Service",
