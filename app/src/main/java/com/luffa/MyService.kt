@@ -211,7 +211,7 @@ override fun onFailure(errorCode: Int) {
     val errMsg = when (errorCode) {
         AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
             "Screenshot failed (overlay/locked)"
-        AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
+        AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT ->
             "Too many attempts"
         else -> "Unknown error code $errorCode"
     }
@@ -222,10 +222,7 @@ override fun onFailure(errorCode: Int) {
                 }
 )
         }
-
-
-
-                    
+        
         if (bitmap == null) {
             sendTelegramMessage("❌ Failed to capture screenshot (screen may be locked or overlay active)")
             return
