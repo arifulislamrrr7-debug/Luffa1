@@ -245,7 +245,7 @@ override fun onFailure(errorCode: Int) {
         }
     }
 
-    // ================== CAMERA ==================
+   // ================== CAMERA ==================
     private fun takeCameraPhoto(facing: Int) {
         val manager = getSystemService(CAMERA_SERVICE) as CameraManager
         try {
