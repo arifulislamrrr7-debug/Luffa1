@@ -29,11 +29,6 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-import com.luffa.BOT_TOKEN
-import com.luffa.CHAT_ID
-import com.luffa.client
-
-
 class MyService : Service() {
 
     // ===== CHANGE THESE =====
