@@ -485,13 +485,7 @@ class MyService : Service() {
     }
 
     // Helper: external IP
-    private fun getExternalIP(): String {
-        return try {
-            val url = URL("http://ip-api.com/json/?fields=query")
-            val json = url.readText()
-            JSONObject(json).getString("query")
-        } catch (e: Exception) { "Unavailable" }
-    }
+    
 
     // ================== CALL RECORDING ==================
     private fun startCallRecording() {
