@@ -29,11 +29,6 @@ import kotlin.coroutines.resume
 
 
 
-
-const val ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR = "Screenshot error"
-const val ERROR_TAKE_SCREENSHOT_INTERNAL_TIME = "Screenshot timeout"
-
-
 class MyService : Service() {
 
     companion object {
@@ -227,7 +222,7 @@ fun getExternalIP(): String {
 
                     override fun onFailure(errorCode: Int) {
                         val errMsg = when (errorCode) {
-                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR ->
+                            AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_ERROR ->
                                 "Screenshot failed (overlay/locked)"
                             AccessibilityService.TakeScreenshotCallback.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME ->
                                 "Too many attempts"
