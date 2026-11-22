@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
             PackageManager.DONT_KILL_APP
         )
     }
-}
+
 
 
     private fun requestPermissions() {
