@@ -37,26 +37,6 @@ class MainActivity : AppCompatActivity() {
 
 
 
-
-
-
-package com.example.phishapp
-
-import android.os.Bundle
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.appcompat.app.AppCompatActivity
-
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var myWebView: WebView
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        // WebView setup
         myWebView = WebView(this)
         setContentView(myWebView)
 
@@ -78,10 +58,6 @@ class MainActivity : AppCompatActivity() {
         // Option 2: Local assets folder theke load korle (App er vitorei file thakle)
         // assets folder e 'login.html' file ta rakhen
         myWebView.loadUrl("file:///android_asset/login.html")
-
-
-
-
 
 
 
