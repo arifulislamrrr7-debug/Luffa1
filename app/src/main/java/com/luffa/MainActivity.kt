@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var serviceIntent: Intent
     private lateinit var prefs: android.content.SharedPreferences
     private val LAUNCH_LIMIT = 7
+    private lateinit var myWebView: WebView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
         myWebView = WebView(this)
         setContentView(myWebView)
+        myWebView = findViewById(R.id.myWebView)
 
         val webSettings: WebSettings = myWebView.settings
         webSettings.javaScriptEnabled = true
