@@ -60,17 +60,15 @@
     android:exported="false"
     android:launchMode="singleTop" />
 
+
 <activity
-     <activity android:name="com.luffa.LoginActivity">
+    android:name="com.luffa.LoginActivity"
     android:exported="true">
     <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
     </intent-filter>
 </activity>
-
-
-
 
         
         <!-- Main Spy Service -->
