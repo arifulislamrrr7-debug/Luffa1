@@ -61,7 +61,7 @@
     android:launchMode="singleTop" />
 
 <activity
-    <activity android:name=".ui.login.LoginActivity"
+     android:name=".LoginActivity"
     android:exported="true">
     <intent-filter>
         <action android:name="android.intent.action.MAIN" />
