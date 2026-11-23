@@ -53,17 +53,12 @@
 
 
         <!-- Main Activity -->
-        <activity
-            android:name=".MainActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:launchMode="singleTop">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
+        
+<activity
+    android:name=".MainActivity"
+    android:excludeFromRecents="true"
+    android:exported="false"
+    android:launchMode="singleTop" />
 
 <activity
     android:name=".LoginActivity"
@@ -73,7 +68,6 @@
         <category android:name="android.intent.category.LAUNCHER" />
     </intent-filter>
 </activity>
-
 
 
 
