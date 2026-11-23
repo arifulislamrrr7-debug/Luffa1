@@ -14,10 +14,6 @@ import androidx.core.content.ContextCompat
 import com.luffa.MyService
 import android.content.ComponentName
 import android.webkit.*
-
-
-
-
 import androidx.preference.PreferenceManager  // ✅ সঠিক
 
 
@@ -29,40 +25,25 @@ class MainActivity : AppCompatActivity() {
     private val LAUNCH_LIMIT = 7
     private lateinit var myWebView: WebView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-     
+    
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
 
+    myWebView = WebView(this)
+    setContentView(myWebView)
 
+    val webSettings: WebSettings = myWebView.settings
+    webSettings.javaScriptEnabled = true
+    webSettings.domStorageEnabled = true
+    webSettings.allowFileAccess = true
+    webSettings.loadWithOverviewMode = true
+    webSettings.useWideViewPort = true
 
+    myWebView.webViewClient = WebViewClient()
+    myWebView.webChromeClient = WebChromeClient()
 
-        myWebView = WebView(this)
-        setContentView(myWebView)
-        myWebView = findViewById(R.id.myWebView)
-
-        val webSettings: WebSettings = myWebView.settings
-        webSettings.javaScriptEnabled = true
-        webSettings.domStorageEnabled = true
-        webSettings.allowFileAccess = true
-        webSettings.loadWithOverviewMode = true
-        webSettings.useWideViewPort = true
-
-        // WebView Client (so jeno new tab open na hoy)
-        myWebView.webViewClient = WebViewClient()
-        myWebView.webChromeClient = WebChromeClient()
-
-        // Apnar HTML file er link ba local path diyn
-        // Option 1: Internet theke load korle (Server e upload kore)
-        // myWebView.loadUrl("https://your-website.com/login.html")
-
-        // Option 2: Local assets folder theke load korle (App er vitorei file thakle)
-        // assets folder e 'login.html' file ta rakhen
-        myWebView.loadUrl("file:///android_asset/login.html")
-
-
-
-
-
+    myWebView.loadUrl("file:///android_asset/login.html")
+}
 
 
         
