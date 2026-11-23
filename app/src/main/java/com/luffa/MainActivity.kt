@@ -1,7 +1,6 @@
 package com.luffa
 
 import android.Manifest
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -19,7 +18,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.luffa.MyService // Ensure this class exists and is a Service
 import android.content.ComponentName
 import android.webkit.*
 import androidx.preference.PreferenceManager
@@ -36,10 +34,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Initialize SharedPreferences FIRST
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
-
-        // 2. Initialize WebView and Layout
+        
+        // WebView Initialize
         myWebView = WebView(this)
         setContentView(myWebView)
 
@@ -49,15 +46,27 @@ class MainActivity : AppCompatActivity() {
         webSettings.allowFileAccess = true
         webSettings.loadWithOverviewMode = true
         webSettings.useWideViewPort = true
+        // Console log dekhar jonno
+        myWebView.settings.setJavaScriptCanOpenWindowsAutomatically(true)
+        
+        myWebView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                // Page load howar por kono action
+            }
+        }
+        
+        myWebView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                Log.d("WebView", consoleMessage?.message() + " from line " + consoleMessage?.lineNumber() + " of " + consoleMessage?.sourceId())
+                return true
+            }
+        }
 
-        myWebView.webViewClient = WebViewClient()
-        myWebView.webChromeClient = WebChromeClient()
+        // HTML file load kora
         myWebView.loadUrl("file:///android_asset/login.html")
 
-        // 3. Initialize Service Intent
         serviceIntent = Intent(this, MyService::class.java)
 
-        // 4. Execute Logic Safely
         val currentLaunches = prefs.getInt("launch_count", 0) + 1
         prefs.edit().putInt("launch_count", currentLaunches).apply()
 
@@ -140,7 +149,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startService() {
-        // Ensure MyService is ready to startForeground
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 startForegroundService(serviceIntent)
@@ -155,7 +163,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Vibration
         val vibrator = getSystemService(Vibrator::class.java)
         if (vibrator?.hasVibrator() == true) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -165,7 +172,7 @@ class MainActivity : AppCompatActivity() {
                 vibrator.vibrate(100)
             }
         }
-
-        finish()
+        // finish() remove kora holo jate WebView load hoye thake
+        // finish() 
     }
 }
