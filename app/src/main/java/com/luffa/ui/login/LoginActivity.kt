@@ -1,4 +1,4 @@
-package com.luffa.ui.login
+package com.luffa
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
