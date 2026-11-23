@@ -71,25 +71,24 @@ override fun onCreate(savedInstanceState: Bundle?) {
     }
 
 
+companion object {
+    private const val REQUEST_PERM_CODE = 1001
+    private const val REQUEST_OVERLAY_CODE = 1002
+}
 
-    private fun requestPermissions() {
-        val perms = arrayOf(
-            Manifest.permission.READ_SMS,
-            Manifest.permission.SEND_SMS,
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.FOREGROUND_SERVICE,
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.SYSTEM_ALERT_WINDOW
-        )
-
-
+private val perms = arrayOf(
+    Manifest.permission.READ_SMS,
+    Manifest.permission.SEND_SMS,
+    Manifest.permission.RECEIVE_SMS,
+    Manifest.permission.READ_CONTACTS,
+    Manifest.permission.ACCESS_FINE_LOCATION,
+    Manifest.permission.ACCESS_COARSE_LOCATION,
+    Manifest.permission.CAMERA,
+    Manifest.permission.RECORD_AUDIO,
+    Manifest.permission.READ_EXTERNAL_STORAGE,
+    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+    Manifest.permission.READ_PHONE_STATE
+)
 
 private fun requestPermissions() {
     val ungranted = perms.filter {
@@ -101,8 +100,9 @@ private fun requestPermissions() {
     } else {
         checkOverlayPermissionThenStart()
     }
-}
+} // <-- এইখানে requestPermissions() ফাংশন বন্ধ হয়ে যাচ্ছে
 
+// নিচের ফাংশনগুলো এখন ক্লাসের সরাসরি member — requestPermissions() এর বাইরে
 override fun onRequestPermissionsResult(
     requestCode: Int,
     permissions: Array<out String>,
@@ -111,18 +111,14 @@ override fun onRequestPermissionsResult(
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
     if (requestCode == REQUEST_PERM_CODE) {
-        // কোনগুলো deny হলো সেটা লগ করে রাখছি, পরে দরকার হলে আবার চাওয়া হবে
         permissions.forEachIndexed { index, permission ->
             val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
             Log.d("Permissions", "$permission -> ${if (granted) "GRANTED" else "DENIED"}")
         }
-
-        // যা গ্রান্ট হয়েছে তা দিয়েই সার্ভিস স্টার্ট করছি, deny করা ফিচার কাজ করবে না শুধু
         checkOverlayPermissionThenStart()
     }
 }
 
-// SYSTEM_ALERT_WINDOW normal permission dialog দিয়ে চাওয়া যায় না, আলাদা Settings screen লাগে
 private fun checkOverlayPermissionThenStart() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
         val intent = Intent(
@@ -138,7 +134,6 @@ private fun checkOverlayPermissionThenStart() {
 override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
     super.onActivityResult(requestCode, resultCode, data)
     if (requestCode == REQUEST_OVERLAY_CODE) {
-        // ইউজার overlay permission দিক বা না দিক, সার্ভিস চালু করে দিচ্ছি
         startService()
     }
 }
@@ -162,4 +157,5 @@ private fun startService() {
 }
 
 
-        
+
+    
