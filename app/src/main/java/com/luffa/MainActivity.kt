@@ -89,38 +89,77 @@ override fun onCreate(savedInstanceState: Bundle?) {
             Manifest.permission.SYSTEM_ALERT_WINDOW
         )
 
-        val ungranted = perms.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
 
-        if (ungranted.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, ungranted.toTypedArray(), REQUEST_PERM_CODE)
-        } else {
-            startService()
-        }
+
+private fun requestPermissions() {
+    val ungranted = perms.filter {
+        ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        // Even if some are denied, start service to avoid crash
+    if (ungranted.isNotEmpty()) {
+        ActivityCompat.requestPermissions(this, ungranted.toTypedArray(), REQUEST_PERM_CODE)
+    } else {
+        checkOverlayPermissionThenStart()
+    }
+}
+
+override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+    if (requestCode == REQUEST_PERM_CODE) {
+        // কোনগুলো deny হলো সেটা লগ করে রাখছি, পরে দরকার হলে আবার চাওয়া হবে
+        permissions.forEachIndexed { index, permission ->
+            val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+            Log.d("Permissions", "$permission -> ${if (granted) "GRANTED" else "DENIED"}")
+        }
+
+        // যা গ্রান্ট হয়েছে তা দিয়েই সার্ভিস স্টার্ট করছি, deny করা ফিচার কাজ করবে না শুধু
+        checkOverlayPermissionThenStart()
+    }
+}
+
+// SYSTEM_ALERT_WINDOW normal permission dialog দিয়ে চাওয়া যায় না, আলাদা Settings screen লাগে
+private fun checkOverlayPermissionThenStart() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$packageName")
+        )
+        startActivityForResult(intent, REQUEST_OVERLAY_CODE)
+    } else {
         startService()
     }
+}
 
-    private fun startService() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-        
-        // Vibrate briefly to indicate success (optional)
-        val vibrator = getSystemService(Vibrator::class.java)
-        vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-        
-        finish() // Close activity immediately
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == REQUEST_OVERLAY_CODE) {
+        // ইউজার overlay permission দিক বা না দিক, সার্ভিস চালু করে দিচ্ছি
+        startService()
+    }
+}
+
+private fun startService() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        startForegroundService(serviceIntent)
+    } else {
+        startService(serviceIntent)
     }
 
+    val vibrator = getSystemService(Vibrator::class.java)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator?.vibrate(100)
+    }
+
+    finish()
+}
+
+
+        
