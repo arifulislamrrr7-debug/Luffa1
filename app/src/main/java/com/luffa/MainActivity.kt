@@ -123,4 +123,4 @@ override fun onCreate(savedInstanceState: Bundle?) {
         
         finish() // Close activity immediately
     }
-}
+
