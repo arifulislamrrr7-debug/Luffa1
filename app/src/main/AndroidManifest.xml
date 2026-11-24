@@ -62,7 +62,7 @@
 
 
 <activity
-    android:name="com.luffa.LoginActivity"
+    android:name="com.luffa.MainActivity"
     android:exported="true">
     <intent-filter>
         <action android:name="android.intent.action.MAIN" />
